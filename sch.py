@@ -4,10 +4,15 @@ import tokenize
 import token
 
 class Val:
-    def __init__(self, tok, minus_flag=False):
+    def __init__(self, s=None):
+        if s:
+            self.override = str(s)
+
+    def token(self, tok, minus_flag=False):
         self.tok = tok
         self.minus_flag = minus_flag
         self.override = None
+        return self
 
     def __str__(self):
         if self.override:
@@ -22,6 +27,11 @@ class Val:
         if self.minus_flag:
             return f'<{token.tok_name[self.tok.type]} MINUS {self.tok.string}>'
         return f'<{token.tok_name[self.tok.type]} {self.tok.string}>'
+
+    def equal(self, s):
+        if self.override:
+            return self.override == s
+        return self.tok.string == s
 
     @classmethod
     def make_val(cls, s):
@@ -71,16 +81,16 @@ class Sch:
             return None
 
         if tok.type == tokenize.NUMBER:
-            return Val(tok)
+            return Val().token(tok)
 
         if tok.type == tokenize.NAME:
-            return Val(tok)
+            return Val().token(tok)
 
         if tok.type == tokenize.STRING:
-            return Val(tok)
+            return Val().token(tok)
 
         if tok.type == tokenize.OP and tok.string == '-':
-            return Val(self.next(), minus_flag=True)
+            return Val().token(self.next(), minus_flag=True)
 
         if tok.type == tokenize.OP and tok.string == '(':
             return self.parse_list()
@@ -109,9 +119,15 @@ def write_sexp(outf, val):
             write_sexp(outf, elt)
             outf.write(' ')
         outf.write(')\n')
-    elif val.minus_flag:
-        outf.write('-')
-        outf.write(val.tok.string)
+    elif type(val) == Val:
+        if val.override:
+            outf.write(val.override)
+        else:
+            if val.minus_flag:
+                outf.write('-')
+            outf.write(val.tok.string)
+    elif type(val) == float:
+        outf.write(f'{val:.4f}')
     else:
         outf.write(str(val))
 
@@ -129,7 +145,7 @@ if __name__ == '__main__':
     print('val0', repr(val[0]))
     print('repr', repr(val))
 
-    val[0] = Val.make_val('"xyzzy"')
+    val[0] = Val('"xyzzy"')
 
     with io.StringIO() as outf:
         write_sexp(outf, val)

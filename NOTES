@@ -1,0 +1,31 @@
+an empty sch is:
+
+(kicad_sch (version 20200310) (page "A4") (lib_symbols) (symbol_instances))
+
+given: mod.kicad_sch - a top level standalone drawing
+
+to add to an existing sch, top:
+
+delete from mod: (sheet_instances) and (symbol_instances)
+
+add to top after (lib_symbols):
+
+  (sheet (at RANDOM-X RANDOM-Y) (size FIXED-W FIXED-H)
+    (stroke (width 0.001) (type solid) (color 132 0 132 1))
+    (fill (color 255 255 255 0.0000))
+    (uuid GEN1)
+    (property "Sheet name" "MOD" (id 0) (at RANDOM-X RANDOM-Y-0.64 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheet file" "led.kicad_sch" (id 1) (at RANDOM-X RANDOM-Y+FIXED_H+.5 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+  )
+
+add to top in (sheet_instances)
+  (path "/GEN1/" (page "#"))
+
+
+then for every symbol in mod, add to symbol_instances in top:
+
+(path "/GEN1/SYMUUID" (reference "COPY") (unit COPY) (value COPY) (footprint COPY))
