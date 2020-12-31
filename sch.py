@@ -115,6 +115,11 @@ def write_sexp(outf, val):
     else:
         outf.write(str(val))
 
+def sexp_to_str(val):
+    with io.StringIO() as outf:
+        write_sexp(outf, val)
+        return outf.getvalue()
+
 if __name__ == '__main__':
     # val = Sch().readfile('small.l')
     val = Sch().readstring('(foo "bar" 1 2.2 (-3))')

@@ -1,0 +1,31 @@
+(kicad_sch (version 20201015) (generator eeschema)
+
+  (paper "A4")
+
+  (lib_symbols
+  )
+
+
+  (sheet (at 101.6 86.36) (size 57.15 20.32)
+    (stroke (width 0.001) (type solid) (color 132 0 132 1))
+    (fill (color 255 255 255 0.0000))
+    (uuid b0f00d96-2a98-48d7-9334-1402e29bf03f)
+    (property "Sheet name" "led" (id 0) (at 101.6 85.7241 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheet file" "led.kicad_sch" (id 1) (at 101.6 107.1889 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+  )
+
+  (sheet_instances
+    (path "/" (page "1"))
+    (path "/b0f00d96-2a98-48d7-9334-1402e29bf03f/" (page "2"))
+  )
+
+  (symbol_instances
+    (path "/b0f00d96-2a98-48d7-9334-1402e29bf03f/9039c1a1-4ce2-4b59-a547-bacd3d51e472"
+      (reference "D?") (unit 1) (value "LED") (footprint "")
+    )
+  )
+)
