@@ -59,7 +59,7 @@ mod = filter_mod(mod)
 page_width = 11 * 25.4
 page_height = 8.5 * 25.4
 
-posx = random.uniform(page_width * 0.5, page_width * 0.9)
+posx = random.uniform(page_width * 0.5, page_width * 0.75)
 posy = random.uniform(page_height * 0.2, page_height * 0.8)
 
 width = 60
