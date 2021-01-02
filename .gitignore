@@ -1,5 +1,7 @@
 ?
 *~
 *-backups/
+*.o
+ccombine
 __pycache__/
 combined/

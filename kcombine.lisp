@@ -1,5 +1,11 @@
 #! /usr/bin/env exlisp
 
+(require :trivial-escapes)
+(defvar *rt* 
+  (let ((rt (named-readtables:find-readtable 'trivial-escapes:dq-readtable)))
+    (setf (readtable-case rt) :preserve)
+    rt))
+
 (defconstant *case-preserving-readtable*
   (let ((rt (copy-readtable nil)))
     (setf (readtable-case rt) :preserve)
@@ -7,9 +13,29 @@
 
 (defun read-sexps (filename)
   (with-open-file (inf filename)
-    (let ((*readtable* *case-preserving-readtable*))
-      (setf (readtable-case *readtable*) :preserve)
+    (let ((*readtable* *rt*))
       (read inf))))
+
+(defun sch-to-string (sch)
+  (with-output-to-string (out)
+    (let ((*readtable* *rt*))
+      (prin1 sch out))))
+
+;"(kicad_sch (version 20200310) (page \"A\\\\n4\") (lib_symbols) (symbol_instances))")))
+
+(print *rt*)
+(print *readtable*)
+
+(defvar *empty* 
+  (let ((*readtable* *rt*))
+    (print *readtable*)
+    (read-from-string "\"foo\\nbar\"")))
+(print *empty*)
+(format t "~%")
+
+(with-open-file (out "foo" :direction :output :if-exists :supersede)
+  (write-string (sch-to-string *empty*) out)
+  (write-char #\Newline out))
 
 (defvar *mod* (read-sexps "flat/flat.kicad_sch"))
 (defvar *top* (read-sexps "empty/empty.kicad_sch"))
@@ -133,11 +159,6 @@
 
 
 (defvar mod-to-insert (filter-mod *mod*))
-
-(defun sch-to-string (sch)
-  (with-output-to-string (out)
-    (let ((*readtable* *case-preserving-readtable*))
-      (prin1 sch out))))
 
 (defun write-output ()
   (with-open-file (outf "combined/combined.kicad_sch" 
