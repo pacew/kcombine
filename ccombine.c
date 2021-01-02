@@ -12,37 +12,68 @@ usage (void)
 	exit (1);
 }
 
-enum obj_type {
+enum node_type {
 	INTEGER,
 	FLOAT,
 	STRING,
 	SYMBOL,
-	CONS,
+	LIST,
 };
 
-struct obj {
-	enum obj_type type;
+struct node {
+	enum node_type type;
+	struct node *parent;
 	double number;
 	char *string;
-	struct obj *car;
-	struct obj *cdr;
+	int list_used, list_avail;
+	struct node **list;
 };
 
-struct obj *
-make_obj (enum obj_type type)
+struct node *
+make_node (enum node_type type, struct node *parent)
 {
-	struct obj *ret = calloc (1, sizeof *ret);
+	struct node *ret = calloc (1, sizeof *ret);
 	ret->type = type;
+	ret->parent = parent;
 	return (ret);
 }
 
-struct obj *
-cons (struct obj *car, struct obj *cdr)
+struct node *
+make_integer (int val, struct node *parent)
 {
-	struct obj *ret = make_obj (CONS);
-	ret->car = car;
-	ret->cdr = cdr;
+	struct node *ret = make_node(INTEGER, parent);
+	ret->number = val;
 	return (ret);
+}
+
+struct node *
+make_float (double val, struct node *parent)
+{
+	struct node *ret = make_node(FLOAT, parent);
+	ret->number = val;
+	return (ret);
+}
+
+struct node *
+make_string (char *val, struct node *parent)
+{
+	struct node *ret = make_node(STRING, parent);
+	ret->string = strdup (val);
+	return (ret);
+}
+
+struct node *
+make_symbol (char *val, struct node *parent)
+{
+	struct node *ret = make_node(SYMBOL, parent);
+	ret->string = strdup (val);
+	return (ret);
+}
+
+struct node *
+make_list (struct node *parent)
+{
+	return (make_node(LIST, parent));
 }
 
 void
@@ -58,21 +89,28 @@ discard_whitespace (FILE *f)
 	}
 }
 
-struct obj *read_exp (FILE *f);
+struct node *read_exp (FILE *f, struct node *parent);
 
-struct obj *
-read_list(FILE *f)
+void
+append (struct node *np, struct node *val)
 {
-	struct obj *ret = NULL;
-	struct obj **tailp = &ret;
-	struct obj *next;
-	struct obj *last;
-
-	while ((next = read_exp (f)) != NULL) {
-		last = cons (next, NULL);
-		*tailp = last;
-		tailp = &last->cdr;
+	if (np->list_used >= np->list_avail) {
+		np->list_avail += 10;
+		np->list = realloc (np->list, np->list_avail * sizeof *np);
 	}
+	np->list[np->list_used++] = val;
+	val->parent = np;
+}
+
+struct node *
+read_list(FILE *f, struct node *parent)
+{
+	struct node *ret;
+	struct node *exp;
+
+	ret = make_list (parent);
+	while ((exp = read_exp (f, ret)) != NULL)
+		append (ret, exp);
 
 	getc (f);
 
@@ -116,38 +154,33 @@ read_bytes (FILE *f, int for_string)
 	return (strdup (buf));
 }
 
-struct obj *
-read_string(FILE *f)
+struct node *
+read_string(FILE *f, struct node *parent)
 {
-	struct obj *ret = make_obj(STRING);
-	ret->string = read_bytes(f, 1);
-	return (ret);
+	return (make_string (read_bytes(f, 1), parent));
 }
 			
-struct obj *
-read_symbol(FILE *f)
+struct node *
+read_symbol(FILE *f, struct node *parent)
 {
-	struct obj *ret = make_obj(SYMBOL);
-	ret->string = read_bytes(f, 0);
-	return (ret);
+	return (make_symbol (read_bytes (f, 0), parent));
 }
 			
-struct obj *
-read_number(FILE *f)
+struct node *
+read_number(FILE *f, struct node *parent)
 {
 	double val;
 	if (fscanf (f, "%lg", &val) != 1)
 		return (NULL);
 
-	struct obj *ret = make_obj(FLOAT);
-	ret->number = val;
-	if (val - floor (val) == 0)
+	struct node *ret = make_float(val, parent);
+	if (ret->number - floor (ret->number) == 0)
 		ret->type = INTEGER;
 	return (ret);
 }
 
-struct obj *
-read_exp (FILE *f)
+struct node *
+read_exp (FILE *f, struct node *parent)
 {
 	discard_whitespace (f);
 
@@ -158,20 +191,20 @@ read_exp (FILE *f)
 	} else if (c == ')') {
 		return (NULL);
 	} else if (c == '(') {
-		return (read_list(f));
+		return (read_list(f, parent));
 	} else if (c == '"') {
-		return (read_string(f));
+		return (read_string(f, parent));
 	} else if (isdigit(c) || c == '-') {
 		ungetc (c, f);
-		return (read_number(f));
+		return (read_number(f, parent));
 	} else {
 		ungetc (c, f);
-		return (read_symbol(f));
+		return (read_symbol(f, parent));
 	}
 }
 
 void
-print_exp(FILE *outf, struct obj *val)
+print_exp(FILE *outf, struct node *val)
 {
 	switch (val->type) {
 	case STRING:
@@ -197,10 +230,10 @@ print_exp(FILE *outf, struct obj *val)
 	case INTEGER:
 		fprintf (outf, "%.0f", val->number);
 		break;
-	case CONS:
+	case LIST:
 		fprintf (outf, "(");
-		for (struct obj *op = val; op; op = op->cdr) {
-			print_exp (outf, op->car);
+		for (int i = 0; i < val->list_used; i++) {
+			print_exp (outf, val->list[i]);
 			putc (' ', outf);
 		}
 		fprintf (outf, ")\n");
@@ -208,7 +241,7 @@ print_exp(FILE *outf, struct obj *val)
 	}
 }
 
-struct obj *
+struct node *
 read_file (char *filename)
 {
 	FILE *f;
@@ -218,17 +251,62 @@ read_file (char *filename)
 		exit (1);
 	}
 
-	struct obj *ret = read_exp (f);
+	struct node *ret = read_exp (f, NULL);
 	fclose (f);
 	return (ret);
 }
 
+struct node *
+make_empty (void)
+{
+	struct node *ret, *elt;
+
+	ret = make_list (NULL);
+	
+	append (ret, make_symbol ("kicad_sch", NULL));
+
+	elt = make_list (NULL);
+	append (elt, make_symbol ("version", NULL));
+	append (elt, make_symbol ("20200310", NULL));
+	append (ret, elt);
+
+	elt = make_list (NULL);
+	append (elt, make_symbol("page", NULL));
+	append (elt, make_string ("A4", NULL));
+	append (ret, elt);
+
+	return (ret);
+}
+
+struct sheet_info {
+	struct sheet_info *next;
+	char *filename;
+	struct node *exp;
+};
+
+struct sheet_info *
+get_sheet (char *filename)
+{
+	struct sheet_info *si;
+	
+	si = calloc (1, sizeof *si);
+	si->filename = strdup (filename);
+	si->exp = read_file (filename);
+	print_exp (stdout, si->exp);
+	return (si);
+}
+
+void
+add_sheet (struct node *top, struct node *sheet, char *name)
+{
+}
 
 int
 main (int argc, char **argv)
 {
 	int c;
-	struct obj *empty;
+	struct node *top;
+	FILE *outf;
 
 	while ((c = getopt (argc, argv, "")) != EOF) {
 		switch (c) {
@@ -237,9 +315,14 @@ main (int argc, char **argv)
 		}
 	}
 
-	empty = read_file ("empty/empty.kicad_sch");
-	print_exp (stdout, empty);
+	top = make_empty ();
 
+	remove ("top.sch");
+	outf = fopen ("top.sch", "w");
+	print_exp (outf, top);
+	fclose (outf);
+
+	
 	return (0);
 }
 
