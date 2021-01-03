@@ -66,7 +66,7 @@
 	    (format uuid "-"))
 	(if (= i 6)
 	    (setq val (logior #x40 (logand val #x0f))))
-	(format uuid "~2,'0x" val)))))
+	(string-downcase (format uuid "~2,'0x" val))))))
 
 (defun find-in-list (items key)
   (cond ((null items) nil)
@@ -145,6 +145,8 @@
 		   (t (walk (cdr l))))))
     (walk (cdr sch-item))))
 
+(defun get-property (sch-item pname)
+  (caddr (get-sch-item-property sch-item pname)))
 
 (defun set-property (sch-item pname pval)
   (let ((prop (get-sch-item-property sch-item pname)))
@@ -162,16 +164,29 @@
     (set-property elt "Sheet file" sheet-filename)
     elt))
     
-;(print (make-sheet-inst "/home/pace/kcombine/byhand/led.kicad_sch" "led1"))
-
+(defun find-sheet-insts-used (sch)
+  (loop for sch-item in (cdr sch)
+	when (eq (car sch-item) '|sheet|)
+	  collect (let ((uuid (cadr (xassoc '|uuid| sch-item)))
+			(sheet-name (get-property sch-item "Sheet name"))
+			(sheet-filename (get-property sch-item "Sheet file")))
+		    (list uuid sheet-name sheet-filename))))
+		  
 (defun build ()
   (let ((top (make-empty))
 	(led-sheet (get-sheet "/home/pace/kcombine/byhand/led.kicad_sch")))
-    (let ((inst (make-sheet-inst (sheet-filename led-sheet) "led1")))
-      (add-to-end top inst)
-      (print top))
+    (let ((inst1 (make-sheet-inst (sheet-filename led-sheet) "led1"))
+	  (inst2 (make-sheet-inst (sheet-filename led-sheet) "led2")))
+      (add-to-end top inst1)
+      (add-to-end top inst2)
+      )
+
+    (let ((used (find-sheet-insts-used top)))
+      (print used))
+
     (write-sch top "/home/pace/kcombine/top.sch")
-    (format t "output in top.sch~%")))
+    (format t "output in top.sch~%")
+    top))
 
 (build)
 
