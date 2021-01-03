@@ -66,7 +66,7 @@
 	    (format uuid "-"))
 	(if (= i 6)
 	    (setq val (logior #x40 (logand val #x0f))))
-	(string-downcase (format uuid "~2,'0x" val))))))
+	(write-string (string-downcase (format nil "~2,'0x" val)) uuid)))))
 
 (defun find-in-list (items key)
   (cond ((null items) nil)
@@ -75,18 +75,6 @@
 	 (cdr items))
 	(t
 	 (find-in-list (cdr items) key))))
-
-;(defun max-page (sheet-instances)
-;  (loop for p in (cdr sheet-instances)
-;     maximize (path-page p)))
-
-(defun paths (sheet-instances)
-  (loop for p in (cdr sheet-instances)
-       collect (cadr p)))
-
-(defun add-path (sheet-instances path pagenum)
-  (setf (cdr (last sheet-instances))
-	`((|path| ,path (|page| ,(format nil "~d" pagenum))))))
 
 (defun make-empty ()
   (copy-tree
@@ -171,7 +159,39 @@
 			(sheet-name (get-property sch-item "Sheet name"))
 			(sheet-filename (get-property sch-item "Sheet file")))
 		    (list uuid sheet-name sheet-filename))))
+
+(defun make-sheet-path (uuid pagenum)
+  (let ((path (if (null uuid)
+		  "/"
+		  (format nil "/~a/" uuid))))
+    (list '|path| path (list '|page| (format nil "~d" pagenum)))))
+      
 		  
+(defun find-max-pagenum (sch)
+  (let ((max-pagenum 0))
+    (loop for path in (cdr (xassoc '|sheet_instances| sch))
+	  do (let ((pagenum-str (cadr (xassoc '|page| path))))
+	       (if pagenum-str
+		   (let ((pagenum (parse-integer pagenum-str)))
+		     (if (> pagenum max-pagenum)
+			 (setq max-pagenum pagenum))))))
+    max-pagenum))
+
+
+;    (cond ((null slist)
+;	   (setq slist (list '|sheet_instances| (make-sheet-path nil 1)))
+;	   (add-to-end sch slist)))
+
+
+(defun find-sheet-insts-declared (sch)
+  (loop for path-info in (cdr (xassoc '|sheet_instances| sch))
+	collect (let* ((path (cadr path-info))
+		       (page-str (cadr (xassoc '|page| path-info)))
+		       (page (if page-str (parse-integer page-str) nil)))
+		  (list path page))))
+	     
+
+
 (defun build ()
   (let ((top (make-empty))
 	(led-sheet (get-sheet "/home/pace/kcombine/byhand/led.kicad_sch")))
