@@ -1,158 +1,129 @@
+#! /usr/bin/env python3
+
 import sys
-import io
-import tokenize
-import token
+from uuid import uuid4
+import sexp
+from sexp import sym
 
-class Val:
-    def __init__(self, s=None):
-        if s:
-            self.override = str(s)
 
-    def token(self, tok, minus_flag=False):
-        self.tok = tok
-        self.minus_flag = minus_flag
-        self.override = None
-        return self
+def print_exp(exp, outf=None):
+    sexp.Sexp().print_exp(exp, outf)
 
-    def __str__(self):
-        if self.override:
-            return self.override
-        if self.minus_flag:
-            return f'MINUS {self.tok.string}'
-        return self.tok.string
 
-    def __repr__(self):
-        if self.override:
-            return self.override
-        if self.minus_flag:
-            return f'<{token.tok_name[self.tok.type]} MINUS {self.tok.string}>'
-        return f'<{token.tok_name[self.tok.type]} {self.tok.string}>'
+def item_type(item):
+    if isinstance(item, list) and len(item) > 0:
+        return item[0]
+    return None
 
-    def equal(self, s):
-        if self.override:
-            return self.override == s
-        return self.tok.string == s
 
-    @classmethod
-    def make_val(cls, s):
-        val = cls(None)
-        val.override = s
-        return val
+def find_prop(item, pname):
+    property = sym('property')
+    for clause in item:
+        if isinstance(clause, list) and len(clause) >= 3:
+            if clause[0] == property and clause[1] == pname:
+                return clause
+    return None
+
+
+def get_prop(item, pname):
+    prop = find_prop(item, pname)
+    if prop is None:
+        return None
+    return prop[2]
+
+
+def set_prop(item, pname, pval):
+    prop = find_prop(item, pname)
+    if prop is None:
+        prop = [sym('property'), pname, pval]
+        item.append(prop)
+    else:
+        prop[2] = pval
+
+
+def assoc(key, alist):
+    if isinstance(alist, list):
+        for item in alist:
+            if isinstance(item, list) and len(item) > 0 and item[0] == key:
+                return item
+    return None
 
 
 class Sch:
     def readfile(self, filename):
-        with tokenize.open(filename) as inf:
-            return self.read(inf.readline)
-        
-    def readstring(self, s):
-        with io.StringIO(s) as inf:
-            return self.read(inf.readline)
+        self.filename = filename
+        self.sch = sexp.Sexp().readfile(filename)
+        return self
 
-    def read(self, readline):
-        self.tokens = tokenize.generate_tokens(readline)
-        self.peek_tok = None
-        return self.parse()
-        
+    def print_sch(self, outf=None):
+        print_exp(self.sch, outf)
 
-    def peek(self):
-        while True:
-            tok = next(self.tokens)
-            if tok.type == tokenize.ENDMARKER:
-                return None
-            if tok.type == tokenize.NEWLINE:
-                continue
-            if tok.type == tokenize.NL:
-                continue
-            break
-        self.peek_tok = tok
-        return tok
+    def make_empty(self):
+        self.sch = [sym('kicad_sch'),
+                    [sym('version'), 20200310],
+                    [sym('page'), "A4"]]
+        return self
 
-    def next(self):
-        if self.peek_tok is not None:
-            tok = self.peek_tok
-            self.peek_tok = None
-            return tok
-        return self.peek()
+    def find_sheet(self, sheet, inst_name):
+        sheet_sym = sym('sheet')
+        for item in self.sch:
+            if item_type(item) == sheet_sym:
+                if (
+                        get_prop(item, 'Sheet name') == inst_name
+                        and get_prop(item, 'Sheet file') == sheet.filename):
+                    return item
+        return None
 
-    def parse(self):
-        tok = self.next()
-        if tok is None:
-            return None
+    def add_sheet(self, sheet, inst_name):
+        if self.find_sheet(sheet, inst_name) is None:
+            item = list()
+            item.append(sym('sheet'))
+            item.append([sym('at'), 50, 50])
+            item.append([sym('size'), 20, 20])
+            self.uuid = sym(str(uuid4()))
+            item.append([sym('uuid'), self.uuid])
+            set_prop(item, 'Sheet name', inst_name)
+            set_prop(item, 'Sheet file', sheet.filename)
 
-        if tok.type == tokenize.NUMBER:
-            return Val().token(tok)
+            self.sch.append(item)
 
-        if tok.type == tokenize.NAME:
-            return Val().token(tok)
-
-        if tok.type == tokenize.STRING:
-            return Val().token(tok)
-
-        if tok.type == tokenize.OP and tok.string == '-':
-            return Val().token(self.next(), minus_flag=True)
-
-        if tok.type == tokenize.OP and tok.string == '(':
-            return self.parse_list()
-
-        print('LAST', tok)
-        sys.exit(0)
-
-    def parse_list(self):
-        ret = []
-        while True:
-            tok = self.peek()
-            if (type(tok) == tokenize.TokenInfo
-                and tok.type == tokenize.OP
-                and tok.string == ')'):
-                self.next()
-                break
-
-            ret.append(self.parse())
-
-        return ret
-
-def write_sexp(outf, val):
-    if type(val) == list:
-        outf.write('(')
-        for elt in val:
-            write_sexp(outf, elt)
-            outf.write(' ')
-        outf.write(')\n')
-    elif type(val) == Val:
-        if val.override:
-            outf.write(val.override)
-        else:
-            if val.minus_flag:
-                outf.write('-')
-            outf.write(val.tok.string)
-    elif type(val) == float:
-        outf.write(f'{val:.4f}')
-    else:
-        outf.write(str(val))
-
-def sexp_to_str(val):
-    with io.StringIO() as outf:
-        write_sexp(outf, val)
-        return outf.getvalue()
-
-if __name__ == '__main__':
-    # val = Sch().readfile('small.l')
-    val = Sch().readstring('(foo "bar" 1 2.2 (-3))')
-
-    print('===')
-    print('val0', val[0])
-    print('val0', repr(val[0]))
-    print('repr', repr(val))
-
-    val[0] = Val('"xyzzy"')
-
-    with io.StringIO() as outf:
-        write_sexp(outf, val)
-        print(outf.getvalue())
-        
+    def fixup_sheet_instances(self):
+        sheet_sym = sym('sheet')
+        uuid_sym = sym('uuid')
+        sheets_used = list()
+        for item in self.sch:
+            if item_type(item) == sheet_sym:
+                val = assoc(uuid_sym, item)
+                inst_name = get_prop(item, 'Sheet name')
+                filename = get_prop(item, 'Sheet file')
+                uuid = val[1]
+                sheets_used.append([inst_name, filename, uuid])
+        print(sheets_used)
 
 
-        
+class Sheet:
+    sheets = dict()
+
+    @classmethod
+    def from_file(cls, filename):
+        if filename in cls.sheets:
+            return cls.sheets[filename]
+
+        sch = Sch().readfile(filename)
+
+        sheet = cls()
+        sheet.filename = filename
+        sheet.sch = sch
+
+        cls.sheets[filename] = sheet
+        return sheet
 
 
+led = Sheet.from_file('byhand/led.kicad_sch')
+
+top = Sch().make_empty()
+top.add_sheet(led, "led1")
+top.add_sheet(led, "led2")
+top.fixup_sheet_instances()
+
+top.print_sch(sys.stdout)

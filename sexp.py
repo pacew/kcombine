@@ -1,10 +1,31 @@
 #! /usr/bin/env python3
 
 import sys
+import numbers
+from uuid import uuid4
 
-class Symbol:
+
+class Sym:
+    table = dict()
+
     def __init__(self, name):
         self.name = name
+
+    def __repr__(self):
+        return f'|{self.name}|'
+
+    @classmethod
+    def lookup(cls, name):
+        if name in cls.table:
+            return cls.table[name]
+        val = Sym(name)
+        cls.table[name] = val
+        return val
+
+
+def sym(name):
+    return Sym.lookup(name)
+
 
 class Sexp:
     def __init__(self):
@@ -42,6 +63,9 @@ class Sexp:
                 return self.read_list()
             elif c == '"':
                 return self.read_string()
+            elif c == '-' or c == '.' or ('0' <= c <= '9'):
+                self.unget(c)
+                return self.read_number()
             else:
                 self.unget(c)
                 return self.read_symbol()
@@ -53,14 +77,26 @@ class Sexp:
             if elt is None:
                 break
             ret.append(elt)
-        c = self.getc()  # discard close paren
+        self.getc()  # discard close paren
         return ret
 
     def read_symbol(self):
-        return Symbol(self.read_chars(False))
+        return sym(self.read_chars(False))
 
     def read_string(self):
         return self.read_chars(True)
+
+    def read_number(self):
+        s = self.read_chars(False)
+        try:
+            val = int(s)
+        except ValueError:
+            try:
+                val = float(s)
+            except ValueError:
+                print('can\'t parse number', repr(s))
+                val = 'oops'
+        return val
 
     def read_chars(self, for_string):
         ret = ''
@@ -88,25 +124,25 @@ class Sexp:
 
         return ret
 
-    def print(self, outf, exp):
+    @classmethod
+    def print_exp(cls, exp, outf=None):
+        if outf is None:
+            outf = sys.stdout
         if isinstance(exp, str):
             outf.write('"')
             outf.write(exp)
-            outf.write('" ')
+            outf.write('"')
         elif isinstance(exp, list):
             outf.write('(')
             for elt in exp:
-                self.print(outf, elt)
+                cls.print_exp(elt, outf)
                 outf.write(' ')
             outf.write(')\n')
-        elif isinstance(exp, Symbol):
+        elif isinstance(exp, Sym):
             outf.write(exp.name)
+        elif isinstance(exp, numbers.Number):
+            outf.write(str(exp))
         else:
             outf.write('? ')
-            
 
-#exp = Sexp().readfile('foo')
-exp = Sexp().readfile('byhand/led.kicad_sch')
-
-Sexp().print(sys.stdout, exp)
 
