@@ -276,16 +276,10 @@ class Sheet:
         return sheet
 
 
-led = Sheet.from_file('led.kicad_sch')
-curlimit = Sheet.from_file('curlimit.kicad_sch')
+cap = Sheet.from_file('cap.kicad_sch')
 
 top = Sch().make_empty()
-top.add_sheet(led, "led1")
-top.add_sheet(curlimit, "curlimit1")
-
-if False:
-    top.add_sheet(led, "led2")
-    top.add_sheet(curlimit, "curlimit2")
+top.add_sheet(cap, "cap1")
 
 top.fixup_sheet_instances()
 top.fixup_symbol_instances()
