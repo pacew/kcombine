@@ -1,13 +1,8 @@
-#! /usr/bin/env exlisp
+;#! /usr/bin/env exlisp
 
 (require :trivial-escapes)
 (defvar *rt* 
   (let ((rt (named-readtables:find-readtable 'trivial-escapes:dq-readtable)))
-    (setf (readtable-case rt) :preserve)
-    rt))
-
-(defconstant *case-preserving-readtable*
-  (let ((rt (copy-readtable nil)))
     (setf (readtable-case rt) :preserve)
     rt))
 
@@ -43,84 +38,47 @@
     (let ((*readtable* *rt*))
       (prin1 sch (cstring-replace out)))))
 
-(defvar *mod* (read-sexps "flat/flat.kicad_sch"))
-(defvar *top* (read-sexps "empty/empty.kicad_sch"))
-;(defvar *top* (read-sexps "flat/flat.kicad_sch"))
+(defun write-sch (sch filename)
+  (with-open-file (out filename
+		       :direction :output
+		       :if-exists :supersede)
+    (write-string (sch-to-string sch) out)
+    (write-char #\Newline out)))
 
-(defun filter-mod (sch)
+
+(defun filter-subsheet (sch)
   (remove-if (lambda (el) 
 	       (and (listp el) 
 		    (or (eq (car el) '|sheet_instances|)
 			(eq (car el) '|symbol_instances|))))
 	     sch))
 
-(defconstant rstate (make-random-state t))
+(defvar *rstate* (make-random-state t))
 (defun rand-in-range (from to)
-  (+ from (random (float (- to from)) rstate)))
+  (+ from (random (float (- to from)) *rstate*)))
 
 ; 123e4567-e89b-12d3-a456-426652340000
 (defun uuid4 ()
   (with-output-to-string (uuid)
     (dotimes (i 16)
-      (let ((val (random 256 rstate)))
+      (let ((val (random 256 *rstate*)))
 	(if (or (= i 4) (= i 6) (= i 8) (= i 10))
 	    (format uuid "-"))
 	(if (= i 6)
 	    (setq val (logior #x40 (logand val #x0f))))
 	(format uuid "~2,'0x" val)))))
 
-(defun mod-to-sheet (sch uuid)
-  (let* ((page-width (* 11 25.4))
-	 (page-height (* 8.5 25.4))
-	 (sheet-width 60)
-	 (sheet-height 60))
-    (let ((posx (rand-in-range (* 0.50 page-width) (* 0.75 page-width)))
-	  (posy (rand-in-range (* 0.20 page-height) (* 0.80 page-height)))
-	  (width 60)
-	  (height 20))
-      `(|sheet|
-	(|at| ,posx, posy)
-	(|size| ,width, height)
-	(|stroke| (|width| 0.001) (|type| |solid|) (|color| 132 0 132 1))
-	(|fill| (|color| 255 255 255 0.0000))
-	(|uuid| ,uuid)
-	(|property| "Sheet name" "MOD" 
-	 (|id| 0) 
-	 (|at| ,posx ,(- posy 1) 0)
-	 (|effects|
-	  (|font| (|size| 1.27 1.27))
-	  (|justify| |left| |bottom|)))
-	(|property| "Sheet file" "led.kicad_sch" 
-	 (|id| 1)
-	 (|at| ,posx ,(+ posy height 1) 0)
-	 (|effects|
-	  (|font| (|size| 1.27 1.27))
-	  (|justify| |left| |top|))
-	 )))))
+(defun find-in-list (items key)
+  (cond ((null items) nil)
+	((and (listp (car items))
+	      (eq (car items) key))
+	 (cdr items))
+	(t
+	 (find-in-list (cdr items) key))))
 
-(defun get-sheet-instances (sch)
-  (let ((val (assoc '|sheet_instances| (cdr sch))))
-    (cond ((null val)
-	   (setq val (list '|sheet_instances|))
-	   (setf (cdr (last sch)) (list val))))
-    val))
-
-(defun get-symbol-instances (sch)
-  (let ((val (assoc '|symbol_instances| (cdr sch))))
-    (cond ((null val)
-	   (setq val (list (list '|symbol_instances|)))
-	   (setf (cdr (last sch)) val)))
-    val))
-
-(defun path-page (path)
-  (let ((val (assoc '|page| (cddr path))))
-    (if val
-	(parse-integer (cadr val))
-	0)))
-
-(defun max-page (sheet-instances)
-  (loop for p in (cdr sheet-instances)
-     maximize (path-page p)))
+;(defun max-page (sheet-instances)
+;  (loop for p in (cdr sheet-instances)
+;     maximize (path-page p)))
 
 (defun paths (sheet-instances)
   (loop for p in (cdr sheet-instances)
@@ -130,51 +88,88 @@
   (setf (cdr (last sheet-instances))
 	`((|path| ,path (|page| ,(format nil "~d" pagenum))))))
 
-(defun scan (l)
-  (cond ((null l) nil)
-	((eq (caar l) '|lib_symbols|)
-	 l)
+(defun make-empty ()
+  (copy-tree
+   '(|kicad_sch|
+     (|version| 20200310)
+     (|page| "A4"))))
+
+(defstruct sheet
+  (filename)
+  (sch)
+  )
+
+(defun get-sheet (filename)
+  (let ((sheet (make-sheet)))
+    (setf (sheet-filename sheet) filename)
+    (setf (sheet-sch sheet) (read-sexps filename))
+    sheet))
+
+(defun add-to-end (list val)
+  (setf (cdr (last list)) (list val)))
+
+(defun xassoc (item xalist)
+  (cond ((null xalist) nil)
+	((and (listp (car xalist))
+	      (eq (caar xalist) item))
+	 (car xalist))
 	(t
-	 (scan (cdr l)))))
+	 (xassoc item (cdr xalist)))))
 
-(defun find-pos-for-sheets (sch)
-  (let ((pos (scan (cdr sch))))
-    (or pos (last sch))))
+(defun max-property-id (sch-item)
+  (let ((maxval -1))
+    (loop for item in (cdr sch-item)
+	  when (eq (car item) '|property|)
+	    do (let ((id (cadr (xassoc '|id| item))))
+		 (if (and id (> id maxval))
+		     (setq maxval id))))
+    maxval))
 
+(defun add-sch-item-property (sch-item pname)
+  (let* ((max-id (max-property-id sch-item))
+	 (item (list '|property|
+		     pname 
+		     "" 
+		     (list '|id| (+ max-id 1)))))
+    (add-to-end sch-item item)
+    item))
 
-(defun add-sheets ()
-  (let* ((sheet-instances (get-sheet-instances *top*))
-	 (paths (paths sheet-instances)))
-    (if (not (member "/" paths :test #'equal))
-	(add-path sheet-instances "/" 1))
-    (let ((max-page (max-page sheet-instances)))
-      (let ((sheet-page (+ max-page 1))
-	    (uuid (uuid4))
-	    )
-	(let ((sheet (mod-to-sheet *mod* uuid)))
-	  (add-path sheet-instances (format nil "/~a/" uuid) sheet-page)
-
-	  (let ((pos (find-pos-for-sheets *top*))
-		(slist (list sheet)))
-	    (setf (cdr slist) (cdr pos))
-	    (setf (cdr pos) slist)
-	    ))))))
-
-(add-sheets)
-
-
-
-(defvar mod-to-insert (filter-mod *mod*))
-
-(defun write-output ()
-  (with-open-file (outf "combined/combined.kicad_sch" 
-			:direction :output
-			:if-exists :supersede)
-    (write-string (sch-to-string *top*) outf)
-    (write-char #\linefeed outf)))
-
-(write-output)
-(format t "output in combined/combined.kicad_sch~%")
+(defun get-sch-item-property (sch-item pname)
+  (labels ((walk (l)
+	     (cond ((null l) nil)
+		   ((and (listp l)
+			 (>= (length (car l)) 2)
+			 (eq (caar l) '|property|)
+			 (string-equal (cadar l) pname))
+		    (car l))
+		   (t (walk (cdr l))))))
+    (walk (cdr sch-item))))
 
 
+(defun set-property (sch-item pname pval)
+  (let ((prop (get-sch-item-property sch-item pname)))
+    (if (null prop)
+	(setq prop (add-sch-item-property sch-item pname)))
+    (setf (caddr prop) pval)))
+
+(defun make-sheet-inst (sheet-filename inst-name)
+  (let ((uuid (uuid4))
+	(elt (list '|sheet|)))
+    (add-to-end elt '(|at| 50 50))
+    (add-to-end elt '(|size| 20 20))
+    (add-to-end elt (list '|uuid| (intern uuid)))
+    (set-property elt "Sheet name" inst-name)
+    (set-property elt "Sheet file" sheet-filename)
+    elt))
+    
+(print (make-sheet-inst "foo" "bar"))
+
+(defun build ()
+  (let ((top (make-empty))
+	(led (get-sheet "/home/pace/kcombine/byhand/led.kicad_sch")))
+    (add-sheet-inst top led "led1")
+    (write-sch top "top.sch")
+    (format t "output in top.sch~%")))
+
+(build)
 
