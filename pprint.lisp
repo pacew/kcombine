@@ -15,7 +15,7 @@
     (let ((*readtable* *rt*))
       (prin1 sch out))))
 
-(let ((val (read-sexps "top.sch")))
+(let ((val (read-sexps "byhand/led.kicad_sch")))
   (let ((*readtable* *rt*))
     (format t "~s~%" val)))
 
