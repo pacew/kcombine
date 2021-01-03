@@ -107,7 +107,7 @@
   (symbol (lib_id "Device:LED") (at 144.78 81.28 90)
     (in_bom yes) (on_board yes)
     (uuid "a3187d92-a65f-466c-b2cb-1668b5181ab4")
-    (property "Reference" "D2" (id 0) (at 148.59 81.28 90)
+    (property "Reference" "D?" (id 0) (at 148.59 81.28 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "LED" (id 1) (at 148.59 83.82 90)

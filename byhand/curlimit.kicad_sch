@@ -67,7 +67,7 @@
   (symbol (lib_id "Device:R") (at 151.13 86.36 0)
     (in_bom yes) (on_board yes)
     (uuid "87b21738-96ab-441a-9ccd-5937ced6a3d3")
-    (property "Reference" "R2" (id 0) (at 153.67 85.09 0)
+    (property "Reference" "R?" (id 0) (at 153.67 85.09 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "R" (id 1) (at 153.67 87.63 0)

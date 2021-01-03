@@ -6,6 +6,7 @@ import sexp
 from sexp import sym
 
 import re
+import random
 
 
 def print_exp(exp, outf=None):
@@ -138,8 +139,8 @@ class Sch:
 
     def add_sheet(self, sheet, inst_name):
         if self.find_sheet(sheet, inst_name) is None:
-            posx = 20
-            posy = 20
+            posx = random.uniform(160, 250)
+            posy = random.uniform(20, 150)
             width = 20
             height = 15
 
@@ -157,13 +158,13 @@ class Sch:
 
             prop = set_prop(item, 'Sheet name', inst_name)
             set_id(prop, 0)
-            set_at(prop, posx, posy - line_height, 0)
-            set_effects(prop, 'top')
+            set_at(prop, posx, posy - 0.2, 0)
+            set_effects(prop, 'bottom')
         
             prop = set_prop(item, 'Sheet file', sheet.filename)
             set_id(prop, 1)
-            set_at(prop, posx, posy + height + line_height, 0)
-            set_effects(prop, 'bottom')
+            set_at(prop, posx, posy + height + 0.2, 0)
+            set_effects(prop, 'top')
 
             self.sch.append(item)
 
@@ -196,7 +197,7 @@ class Sch:
         for _, sheet in Sheet.sheets.items():
             pagenum = sheet.pagenum
             for sheet_inst in sheet.sheet_insts:
-                path = f'/{sheet_inst.uuid}/'
+                path = f'/{sheet_inst.uuid.name}/'
                 si.append(make_path(path, pagenum))
                 pagenum = None
 
@@ -275,8 +276,8 @@ class Sheet:
         return sheet
 
 
-led = Sheet.from_file('byhand/led.kicad_sch')
-curlimit = Sheet.from_file('byhand/curlimit.kicad_sch')
+led = Sheet.from_file('led.kicad_sch')
+curlimit = Sheet.from_file('curlimit.kicad_sch')
 
 top = Sch().make_empty()
 top.add_sheet(led, "led1")
