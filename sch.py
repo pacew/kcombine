@@ -226,7 +226,7 @@ class Sch:
                             unit = 1
 
                         path = f'/{sheet_inst.uuid.name}/{uuid}'
-                        ref = re.sub(r'[0-9]+$', '?', ref)
+                        ref = f'{sheet_inst.inst_name}-{ref}'
 
                         syminst = [sym('path'), path,
                                    [sym('reference'), ref],
@@ -281,9 +281,12 @@ curlimit = Sheet.from_file('curlimit.kicad_sch')
 
 top = Sch().make_empty()
 top.add_sheet(led, "led1")
-top.add_sheet(led, "led2")
 top.add_sheet(curlimit, "curlimit1")
-top.add_sheet(curlimit, "curlimit2")
+
+if False:
+    top.add_sheet(led, "led2")
+    top.add_sheet(curlimit, "curlimit2")
+
 top.fixup_sheet_instances()
 top.fixup_symbol_instances()
 
