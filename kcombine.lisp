@@ -162,13 +162,15 @@
     (set-property elt "Sheet file" sheet-filename)
     elt))
     
-(print (make-sheet-inst "foo" "bar"))
+;(print (make-sheet-inst "/home/pace/kcombine/byhand/led.kicad_sch" "led1"))
 
 (defun build ()
   (let ((top (make-empty))
-	(led (get-sheet "/home/pace/kcombine/byhand/led.kicad_sch")))
-    (add-sheet-inst top led "led1")
-    (write-sch top "top.sch")
+	(led-sheet (get-sheet "/home/pace/kcombine/byhand/led.kicad_sch")))
+    (let ((inst (make-sheet-inst (sheet-filename led-sheet) "led1")))
+      (add-to-end top inst)
+      (print top))
+    (write-sch top "/home/pace/kcombine/top.sch")
     (format t "output in top.sch~%")))
 
 (build)
