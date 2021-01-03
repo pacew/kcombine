@@ -16,26 +16,32 @@
     (let ((*readtable* *rt*))
       (read inf))))
 
+(defclass cstring ()
+  ((val :initarg :val)))
+
+(defmethod print-object ((obj cstring) stream)
+  (write-char #\" stream)
+  (loop for c across (slot-value obj 'val)
+	do (cond ((eql c #\Newline)
+		  (write-string "\\n" stream))
+		 ((member c '(#\" #\\) :test 'eql)
+		  (write-char #\\ stream)
+		  (write-char c stream))
+		 (t
+		  (write-char c stream))))
+  (write-char #\" stream))
+
+(defun cstring-replace (tree)
+  (cond ((null tree) nil)
+	((stringp tree) (make-instance 'cstring :val tree))
+	((atom tree) tree)
+	(t (cons (cstring-replace (car tree))
+		 (cstring-replace (cdr tree))))))
+
 (defun sch-to-string (sch)
   (with-output-to-string (out)
     (let ((*readtable* *rt*))
-      (prin1 sch out))))
-
-;"(kicad_sch (version 20200310) (page \"A\\\\n4\") (lib_symbols) (symbol_instances))")))
-
-(print *rt*)
-(print *readtable*)
-
-(defvar *empty* 
-  (let ((*readtable* *rt*))
-    (print *readtable*)
-    (read-from-string "\"foo\\nbar\"")))
-(print *empty*)
-(format t "~%")
-
-(with-open-file (out "foo" :direction :output :if-exists :supersede)
-  (write-string (sch-to-string *empty*) out)
-  (write-char #\Newline out))
+      (prin1 sch (cstring-replace out)))))
 
 (defvar *mod* (read-sexps "flat/flat.kicad_sch"))
 (defvar *top* (read-sexps "empty/empty.kicad_sch"))
@@ -168,6 +174,7 @@
     (write-char #\linefeed outf)))
 
 (write-output)
+(format t "output in combined/combined.kicad_sch~%")
 
 
 
