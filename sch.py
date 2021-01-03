@@ -5,6 +5,8 @@ from uuid import uuid4
 import sexp
 from sexp import sym
 
+import re
+
 
 def print_exp(exp, outf=None):
     sexp.Sexp().print_exp(exp, outf)
@@ -52,6 +54,14 @@ def assoc(key, alist, create=False):
         return item
     return None
 
+
+def assoc_get(key, alist):
+    item = assoc(key, alist)
+    if item is None:
+        return None
+    if len(item) < 2:
+        return None
+    return item[1]
 
 def assoc_set(key, alist, val):
     item = assoc(key, alist)
@@ -197,6 +207,35 @@ class Sch:
         else:
             self.sch.append(si)
 
+    def fixup_symbol_instances(self):
+        symbol_instances = []
+
+        symbol_sym = sym('symbol')
+        for _, sheet in Sheet.sheets.items():
+            for sheet_inst in sheet.sheet_insts:
+                for item in sheet.sch.sch:
+                    if isinstance(item, list) and item[0] == symbol_sym:
+                        # uuid reference unit value footprint
+                        uuid = assoc_get(sym('uuid'), item)
+                        ref = get_prop(item, 'Reference')
+                        unit = get_prop(item, 'unit')
+                        value = get_prop(item, 'Value')
+                        footprint = get_prop(item, 'Footprint')
+                        if unit is None:
+                            unit = 1
+
+                        path = f'/{sheet_inst.uuid.name}/{uuid}'
+                        ref = re.sub(r'[0-9]+$', '?', ref)
+
+                        syminst = [sym('path'), path,
+                                   [sym('reference'), ref],
+                                   [sym('unit'), unit],
+                                   [sym('value'), value],
+                                   [sym('footprint'), footprint]]
+                        symbol_instances.append(syminst)
+
+        assoc_set_multiple(sym('symbol_instances'), self.sch, 
+                           symbol_instances)
         
 class SheetInst:
     def __init__(self, sheet, inst_name, uuid):
@@ -245,5 +284,6 @@ top.add_sheet(led, "led2")
 top.add_sheet(curlimit, "curlimit1")
 top.add_sheet(curlimit, "curlimit2")
 top.fixup_sheet_instances()
+top.fixup_symbol_instances()
 
 top.print_sch(sys.stdout)
