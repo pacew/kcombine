@@ -1,0 +1,43 @@
+(kicad_sch (version 20201015) (generator eeschema)
+
+  (paper "A4")
+
+  (lib_symbols
+  )
+
+
+  (sheet (at 168.91 60.96) (size 26.67 20.32)
+    (stroke (width 0.001) (type solid) (color 132 0 132 1))
+    (fill (color 255 255 255 0.0000))
+    (uuid f6f98991-c174-4124-bca3-675ab210d740)
+    (property "Sheet name" "led" (id 0) (at 168.91 60.3241 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheet file" "led-sheet.kicad_sch" (id 1) (at 168.91 81.7889 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (pin "LED_A" input (at 168.91 66.04 180)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (pin "LED_C" input (at 168.91 72.39 180)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+  )
+
+  (sheet_instances
+    (path "/" (page "1"))
+    (path "/f6f98991-c174-4124-bca3-675ab210d740/" (page "2"))
+  )
+
+  (symbol_instances
+    (path "/f6f98991-c174-4124-bca3-675ab210d740/6d1ae22a-56e7-4f68-8007-d9b1bbd2a6d1"
+      (reference "D1") (unit 1) (value "LED") (footprint "LED_SMD:LED_0805_2012Metric")
+    )
+    (path "/f6f98991-c174-4124-bca3-675ab210d740/32c558c9-73c5-42f4-bab5-24c9340f9df1"
+      (reference "TP1") (unit 1) (value "TestPoint") (footprint "TestPoint:TestPoint_Pad_1.0x1.0mm")
+    )
+    (path "/f6f98991-c174-4124-bca3-675ab210d740/39dd7655-a0be-4856-a0cf-d45a3e703a6a"
+      (reference "TP2") (unit 1) (value "TestPoint") (footprint "TestPoint:TestPoint_Pad_1.0x1.0mm")
+    )
+  )
+)
