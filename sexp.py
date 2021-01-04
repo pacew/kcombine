@@ -134,14 +134,19 @@ class Sexp:
             outf.write('"')
         elif isinstance(exp, list):
             outf.write('(')
+            need_space = False
             for elt in exp:
+                if need_space:
+                    outf.write(' ')
                 cls.print_exp(elt, outf)
-                outf.write(' ')
+                need_space = True
             outf.write(')\n')
         elif isinstance(exp, Sym):
             outf.write(exp.name)
-        elif isinstance(exp, numbers.Number):
+        elif isinstance(exp, int):
             outf.write(str(exp))
+        elif isinstance(exp, float):
+            outf.write(f'{exp:.4f}')
         else:
             outf.write('? ')
 

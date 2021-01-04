@@ -124,7 +124,7 @@ class Sch:
     def make_empty(self):
         self.sch = [sym('kicad_sch'),
                     [sym('version'), 20201015],
-                    [sym('page'), "A4"]]
+                    [sym('paper'), "A4"]]
         return self
 
     def find_sheet(self, sheet, inst_name):
@@ -235,6 +235,7 @@ class Sch:
                                    [sym('footprint'), footprint]]
                         symbol_instances.append(syminst)
 
+        symbol_instances.sort(key=lambda item: assoc_get(sym('reference'), item))
         assoc_set_multiple(sym('symbol_instances'), self.sch, 
                            symbol_instances)
         
@@ -284,4 +285,4 @@ top.add_sheet(cap, "cap1")
 top.fixup_sheet_instances()
 top.fixup_symbol_instances()
 
-top.print_sch(sys.stdout)
+top.print_sch()
