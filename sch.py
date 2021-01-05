@@ -86,8 +86,8 @@ def set_id(alist, val):
     assoc_set(sym('id'), alist, val)
                 
 
-def set_at(alist, x, y, z):
-    assoc_set_multiple(sym('at'), alist, [x, y, z])
+def set_at(alist, x, y, rotation):
+    assoc_set_multiple(sym('at'), alist, [x, y, rotation])
 
                 
 def set_effects(alist, top_bottom):
@@ -226,7 +226,9 @@ class Sch:
                             unit = 1
 
                         path = f'/{sheet_inst.uuid.name}/{uuid}'
-                        ref = f'{sheet_inst.inst_name}-{ref}'
+
+                        core_ref = re.sub('^[^:]*:', '', ref)
+                        ref = f'{sheet_inst.inst_name}:{core_ref}'
 
                         syminst = [sym('path'), path,
                                    [sym('reference'), ref],
@@ -281,6 +283,7 @@ led = Sheet.from_file('led-sheet.kicad_sch')
 
 top = Sch().make_empty()
 top.add_sheet(led, "led1")
+top.add_sheet(led, "led2")
 
 top.fixup_sheet_instances()
 top.fixup_symbol_instances()
