@@ -1,3 +1,7 @@
+https://docs.google.com/document/d/1y7AL9M4350vifdX3lmcU77sLQ8YWy-fBtMmfsXEObqg/edit
+https://forum.kicad.info/t/replicate-layout-action-plugin/8539
+
+
 (sheet_instances) is popultated from SCH_SHEET_PATH sheetPaths
   SCH_SHEET
   sheet->GetPageNumber
@@ -22,6 +26,7 @@ SCH_ITEM*
   SCH_TEXT
   
   
+https://sexpdata.readthedocs.io/en/latest/
 
 
 ================================================================
