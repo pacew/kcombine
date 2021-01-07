@@ -1,3 +1,31 @@
+(sheet_instances) is popultated from SCH_SHEET_PATH sheetPaths
+  SCH_SHEET
+  sheet->GetPageNumber
+
+(symbol_instances) is populated from SCH_SHEET_PATH sheetPaths
+   SCH_REFERENCE_LIST instances
+   
+SHEET_MANDATORY_FIELDS
+
+
+SCHEMATIC*
+PROPERTIES*
+
+SCH_ITEM*
+  SCH_COMPONENT
+  SCH_BITMAP
+  SCH_SHEET  saveSheet
+  SCH_JUNCTION
+  SCH_NO_CONNECT
+  SCH_BUS_ENTRY_BASE
+  SCH_LINE
+  SCH_TEXT
+  
+  
+
+
+================================================================
+
 http://www.gigamonkeys.com/book/
 
 an empty sch is:

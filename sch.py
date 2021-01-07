@@ -58,19 +58,18 @@ def assoc(key, alist, create=False):
 
 def assoc_get(key, alist):
     item = assoc(key, alist)
-    if item is None:
-        return None
-    if len(item) < 2:
-        return None
-    return item[1]
+    if isinstance(item, list) and len(item) >= 2:
+        return item[1]
+    return None
+
 
 def assoc_set(key, alist, val):
     item = assoc(key, alist)
     if item is None:
-        item = [key]
-        alist.append(item)
-    del item[1:]
-    item.append(val)
+        alist.append([key, val])
+    else:
+        del item[1:]
+        item.append(val)
 
 
 def assoc_set_multiple(key, alist, val):
@@ -130,11 +129,10 @@ class Sch:
     def find_sheet(self, sheet, inst_name):
         sheet_sym = sym('sheet')
         for item in self.sch:
-            if item_type(item) == sheet_sym:
-                if (
-                        get_prop(item, 'Sheet name') == inst_name
-                        and get_prop(item, 'Sheet file') == sheet.filename):
-                    return item
+            if (item_type(item) == sheet_sym
+                and get_prop(item, 'Sheet name') == inst_name
+                and get_prop(item, 'Sheet file') == sheet.filename):
+                return item
         return None
 
     def add_sheet(self, sheet, inst_name):
@@ -179,10 +177,9 @@ class Sch:
         pagenum = 2
         for item in self.sch:
             if item_type(item) == sheet_sym:
-                val = assoc(uuid_sym, item)
+                uuid = assoc_get(uuid_sym, item)
                 inst_name = get_prop(item, 'Sheet name')
                 filename = get_prop(item, 'Sheet file')
-                uuid = val[1]
 
                 sheet = Sheet.lookup_by_file(filename)
                 if sheet:
@@ -215,8 +212,7 @@ class Sch:
         for _, sheet in Sheet.sheets.items():
             for sheet_inst in sheet.sheet_insts:
                 for item in sheet.sch.sch:
-                    if isinstance(item, list) and item[0] == symbol_sym:
-                        # uuid reference unit value footprint
+                    if item_type(item) == symbol_sym:
                         uuid = assoc_get(sym('uuid'), item)
                         ref = get_prop(item, 'Reference')
                         unit = get_prop(item, 'unit')
