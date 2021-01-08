@@ -1,8 +1,6 @@
 #! /usr/bin/env python3
 
 import sys
-import numbers
-from uuid import uuid4
 
 
 class Sym:
@@ -26,68 +24,107 @@ class Sym:
 def sym(name):
     return Sym.lookup(name)
 
+class PeekStream:
+    def __init__(self, filename):
+        self.filename = filename
+        self.unget_char = None
+        
+    def __enter__(self):
+        self.file = open(self.filename)
+        return self
 
-class Sexp:
-    def __init__(self):
-        self.peekc = None
-        self.inf = None
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.file.close()
+        self.file = None
 
     def peek(self):
-        if self.peekc is None:
-            self.peekc = self.inf.read(1)
-        return self.peekc
+        if not self.unget_char:
+            self.unget_char = self.file.read(1)
+        return self.unget_char
 
     def getc(self):
         c = self.peek()
-        self.peekc = None
+        self.unget_char = None
         return c
 
     def unget(self, c):
-        self.peekc = c
+        self.unget_char = c
 
-    def readfile(self, filename):
-        self.inf = open(filename)
-        return self.read_exp()
+def read_sexp(filename):
+    with PeekStream(filename) as inf:
+        return Sexp().read_exp(inf)
 
-    def read_exp(self):
+
+def print_sexp(elt, outf=None):
+    if outf is None:
+        outf = sys.stdout
+    if isinstance(elt, str):
+        outf.write('"')
+        for c in elt:
+            if c == '\r':
+                outf.write('\\r')
+            elif c == '\n':
+                outf.write('\\n')
+            elif c == '\t':
+                outf.write('\\t')
+            elif c == '\\':
+                outf.write('\\\\')
+            else:
+                outf.write(c)
+        outf.write('"')
+    elif isinstance(elt, Sexp):
+        elt.print(outf)
+    elif isinstance(elt, Sym):
+        outf.write(elt.name)
+    elif isinstance(elt, int):
+        outf.write(str(elt))
+    elif isinstance(elt, float):
+        outf.write(f'{exp:.4f}')
+    else:
+        outf.write('OOPS')
+
+
+class Sexp:
+    def read_exp(self, inf):
         while True:
-            c = self.getc()
+            c = inf.getc()
             if c == ' ' or c == '\t' or c == '\r' or c == '\n':
                 pass
             elif c is None or c == '':
                 return None
             elif c == ')':
-                self.unget(c)
+                inf.unget(c)
                 return None
             elif c == '(':
-                return self.read_list()
+                return self.read_list(inf)
             elif c == '"':
-                return self.read_string()
+                return self.read_string(inf)
             elif c == '-' or c == '.' or ('0' <= c <= '9'):
-                self.unget(c)
-                return self.read_number()
+                inf.unget(c)
+                return self.read_number(inf)
             else:
-                self.unget(c)
-                return self.read_symbol()
+                inf.unget(c)
+                return self.read_symbol(inf)
 
-    def read_list(self):
-        ret = list()
+    def read_list(self, inf):
+        self.list = []
         while True:
-            elt = self.read_exp()
+            elt = Sexp().read_exp(inf)
             if elt is None:
                 break
-            ret.append(elt)
-        self.getc()  # discard close paren
-        return ret
+            self.list.append(elt)
+        inf.getc()  # discard close paren
+        return self
 
-    def read_symbol(self):
-        return sym(self.read_chars(False))
+    def read_symbol(self, inf):
+        return sym(self.read_chars(inf, False))
 
-    def read_string(self):
-        return self.read_chars(True)
+    def read_string(self, inf):
+        # initial quote has already been consumed
+        return self.read_chars(inf, True)
 
-    def read_number(self):
-        s = self.read_chars(False)
+    def read_number(self, inf):
+        s = self.read_chars(inf, False)
         try:
             val = int(s)
         except ValueError:
@@ -98,10 +135,10 @@ class Sexp:
                 val = 'oops'
         return val
 
-    def read_chars(self, for_string):
+    def read_chars(self, inf, for_string):
         ret = ''
         while True:
-            c = self.getc()
+            c = inf.getc()
             if for_string:
                 if c == '"':
                     break
@@ -109,11 +146,11 @@ class Sexp:
                 if c == ' ' or c == '\t' or c == '\r' or c == '\n':
                     break
                 if c == '(' or c == ')' or c == '"':
-                    self.unget(c)
+                    inf.unget(c)
                     break
 
             if c == '\\':
-                c = self.getc()
+                c = inf.getc()
                 if c == 'r':
                     c = '\r'
                 elif c == 'n':
@@ -124,30 +161,56 @@ class Sexp:
 
         return ret
 
-    @classmethod
-    def print_exp(cls, exp, outf=None):
+    def print(self, outf=None):
         if outf is None:
             outf = sys.stdout
-        if isinstance(exp, str):
-            outf.write('"')
-            outf.write(exp)
-            outf.write('"')
-        elif isinstance(exp, list):
-            outf.write('(')
-            need_space = False
-            for elt in exp:
-                if need_space:
-                    outf.write(' ')
-                cls.print_exp(elt, outf)
-                need_space = True
-            outf.write(')\n')
-        elif isinstance(exp, Sym):
-            outf.write(exp.name)
-        elif isinstance(exp, int):
-            outf.write(str(exp))
-        elif isinstance(exp, float):
-            outf.write(f'{exp:.4f}')
+        outf.write('(')
+        need_space = False
+        for elt in self.list:
+            if need_space:
+                outf.write(' ')
+            need_space = True
+            
+            print_sexp(elt, outf)
+        outf.write(')\n')
+                
+    def car(self):
+        if len(self.list) > 0:
+            return self.list[0]
+        return None
+
+    def assoc(self, key, create=False):
+        for item in self.list:
+            if isinstance(item, Sexp) and item.car() == key:
+                return item
+        if create:
+            item = Sexp()
+            item.list = [key]
+            self.list.append(item)
+            return item
+        return None
+
+    def assoc_get(self, key):
+        item = self.assoc(key)
+        if isinstance(item, Sexp) and len(item.list) >= 2:
+            return item.list[1]
+        return None
+
+    def assoc_set(self, key, val):
+        item = assoc(key)
+        if item is Sexp:
+            del item.list[1:]
+            item.list.append(val)
         else:
-            outf.write('? ')
+            item = Sexp()
+            item.list = [key, val]
+            self.list.append(item)
 
-
+    def assoc_set_multiple(self, key, val):
+        item = assoc(key)
+        if item is Sexp:
+            del item.list[1:]
+            item.extend(val)
+        else:
+            item = Sexp()
+            item.list = [key] + val

@@ -275,17 +275,21 @@ class Sheet:
         return sheet
 
 
-top = Sch().make_empty()
+def main():
+    top = Sch().make_empty()
 
-if False:
-    led = Sheet.from_file('led-sheet.kicad_sch')
-    top.add_sheet(led, "led1")
-    top.add_sheet(led, "led2")
-else:
-    cap = Sheet.from_file('cap.kicad_sch')
-    top.add_sheet(cap, 'cap1')
+    if False:
+        led = Sheet.from_file('led-sheet.kicad_sch')
+        top.add_sheet(led, "led1")
+        top.add_sheet(led, "led2")
+    else:
+        cap = Sheet.from_file('cap.kicad_sch')
+        top.add_sheet(cap, 'cap1')
 
-top.fixup_sheet_instances()
-top.fixup_symbol_instances()
+    top.fixup_sheet_instances()
+    top.fixup_symbol_instances()
 
-top.print_sch()
+    top.print_sch()
+
+if __name__ == '__main__':
+    main()
