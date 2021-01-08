@@ -18,7 +18,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     config = sexp.read_sexp(args.config)
-    sexp.print_sexp(config)
+    print(config)
     kcombine(config)
 
 

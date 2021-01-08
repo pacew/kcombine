@@ -55,33 +55,37 @@ def read_sexp(filename):
         return Sexp().read_exp(inf)
 
 
+def str_sexp(elt):
+    if isinstance(elt, str):
+        ret = '"'
+        for c in elt:
+            if c == '\r':
+                ret += '\\r'
+            elif c == '\n':
+                ret += '\\n'
+            elif c == '\t':
+                ret += '\\t'
+            elif c == '\\':
+                ret += '\\\\'
+            else:
+                ret += c
+        ret += '"'
+        return ret
+    elif isinstance(elt, Sexp):
+        return elt.__str__()
+    elif isinstance(elt, Sym):
+        return elt.name
+    elif isinstance(elt, int):
+        return str(elt)
+    elif isinstance(elt, float):
+        return f'{elt:.4f}'
+    else:
+        return '<OOPS>'
+
 def print_sexp(elt, outf=None):
     if outf is None:
         outf = sys.stdout
-    if isinstance(elt, str):
-        outf.write('"')
-        for c in elt:
-            if c == '\r':
-                outf.write('\\r')
-            elif c == '\n':
-                outf.write('\\n')
-            elif c == '\t':
-                outf.write('\\t')
-            elif c == '\\':
-                outf.write('\\\\')
-            else:
-                outf.write(c)
-        outf.write('"')
-    elif isinstance(elt, Sexp):
-        elt.print(outf)
-    elif isinstance(elt, Sym):
-        outf.write(elt.name)
-    elif isinstance(elt, int):
-        outf.write(str(elt))
-    elif isinstance(elt, float):
-        outf.write(f'{exp:.4f}')
-    else:
-        outf.write('OOPS')
+    outf.write(str_sexp(elt))
 
 
 class Sexp:
@@ -131,7 +135,7 @@ class Sexp:
             try:
                 val = float(s)
             except ValueError:
-                print('can\'t parse number', repr(s))
+                print('can\'t parse number', str(s))
                 val = 'oops'
         return val
 
@@ -161,19 +165,24 @@ class Sexp:
 
         return ret
 
-    def print(self, outf=None):
-        if outf is None:
-            outf = sys.stdout
-        outf.write('(')
+    def __str__(self):
+        ret = '('
         need_space = False
         for elt in self.list:
             if need_space:
-                outf.write(' ')
+                ret += ' '
             need_space = True
             
-            print_sexp(elt, outf)
-        outf.write(')\n')
-                
+            ret += str_sexp(elt)
+        ret += ')\n'
+        return ret
+
+
+    def print(self, outf=None):
+        if outf is None:
+            outf = sys.stdout
+        outf.write(self.__str__())
+
     def car(self):
         if len(self.list) > 0:
             return self.list[0]
