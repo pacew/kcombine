@@ -96,6 +96,12 @@ def print_sexp(elt, outf=None):
 
 
 class Sexp:
+    def __init__(self):
+        self.list = []
+
+    def append(self, val):
+        self.list.append(val)
+        
     def __iter__(self):
         for item in self.list:
             yield item
@@ -228,7 +234,7 @@ class Sexp:
 
     def assoc_set(self, key, val):
         key = self.tosym(key)
-        item = assoc(key)
+        item = self.assoc(key)
         if item is Sexp:
             del item.list[1:]
             item.list.append(val)
@@ -239,7 +245,7 @@ class Sexp:
 
     def assoc_set_multiple(self, key, val):
         key = self.tosym(key)
-        item = assoc(key)
+        item = self.assoc(key)
         if item is Sexp:
             del item.list[1:]
             item.extend(val)

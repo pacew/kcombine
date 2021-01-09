@@ -111,21 +111,15 @@ def make_path(path, pagenum):
     return [sym('path'), path, [sym('page'), str(pagenum) if pagenum else '']]
 
 
-class Sch:
-    def readfile(self, filename):
-        self.filename = filename
-        self.sch = sexp.Sexp().readfile(filename)
-        return self
+def make_empty():
+    ret = Sch()
+    ret.list.append(sym('kicad_sch'))
+    ret.assoc_set('version', 20201015)
+    ret.assoc_set('paper', "A4")
+    return ret
 
-    def print_sch(self, outf=None):
-        print_exp(self.sch, outf)
 
-    def make_empty(self):
-        self.sch = [sym('kicad_sch'),
-                    [sym('version'), 20201015],
-                    [sym('paper'), "A4"]]
-        return self
-
+class Sch(sexp.Sexp):
     def find_sheet(self, sheet, inst_name):
         sheet_sym = sym('sheet')
         for item in self.sch:

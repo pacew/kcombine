@@ -9,12 +9,24 @@ from sexp import sym
 
 
 def kcombine(config):
-    output = config.assoc_get('output')
-    print(output)
+    top = sch.make_empty()
+    print(top)
+
+
+
+    output_filename = config.assoc_get('output')
+    print(output_filename)
+    try:
+        top = sexp.read_sexp(output_filename)
+    except FileNotFoundError:
+        top = sch.make_empty()
+    print(top)
+    
+
     sheet_sym = sym('sheet')
     for item in config:
         if sexp.keyeq(item, 'sheet'):
-            print(item)
+            pass
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
