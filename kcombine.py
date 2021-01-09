@@ -9,24 +9,25 @@ from sexp import sym
 
 
 def kcombine(config):
+    output_filename = config.get1('output')
+    # try:
+    #     top = sch.read_sch(output_filename)
+    # except FileNotFoundError:
+    #     top = sch.make_empty()
+    # print(top)
     top = sch.make_empty()
-    print(top)
-
-
-
-    output_filename = config.assoc_get('output')
-    print(output_filename)
-    try:
-        top = sexp.read_sexp(output_filename)
-    except FileNotFoundError:
-        top = sch.make_empty()
-    print(top)
-    
 
     sheet_sym = sym('sheet')
-    for item in config:
-        if sexp.keyeq(item, 'sheet'):
-            pass
+    for sheet_spec in config:
+        if sexp.keyeq(sheet_spec, 'sheet'):
+            insts = sheet_spec.get_multiple('inst')
+            for inst in insts:
+                top.add_sheet(sheet_spec, inst)
+
+    print(top)
+    with open(output_filename, 'w') as outf:
+        top.write(outf)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

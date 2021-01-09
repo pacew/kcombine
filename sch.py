@@ -1,16 +1,17 @@
 #! /usr/bin/env python3
 
 import sys
+import os
 from uuid import uuid4
 import sexp
-from sexp import sym
+from sexp import sym, Sexp
 
 import re
 import random
 
 
 def print_exp(exp, outf=None):
-    sexp.Sexp().print_exp(exp, outf)
+    Sexp().print_exp(exp, outf)
 
 
 def item_type(item):
@@ -81,84 +82,123 @@ def assoc_set_multiple(key, alist, val):
     item.extend(val)
 
 
-def set_id(alist, val):
-    assoc_set(sym('id'), alist, val)
+def set_id(prop, val):
+    prop.set1('id', val)
                 
+def set_at(prop, x, y, rotation):
+    prop.set_multiple('at', [x, y, rotation])
 
-def set_at(alist, x, y, rotation):
-    assoc_set_multiple(sym('at'), alist, [x, y, rotation])
-
-                
-def set_effects(alist, top_bottom):
-    val = [[sym('font'), [sym('size'), 1.27, 1.27]],
-           [sym('justify'), sym('left'), sym(top_bottom)]]
-    assoc_set_multiple(sym('effects'), alist, val)
+def set_effects(prop, top_bottom):
+    val = Sexp('font')
+    val.set_multiple('size', [1.27, 1.27])
+    val.set_multiple('justify', [sym('left'), sym(top_bottom)])
+    prop.set1('effects', val)
 
 
-def set_stroke(alist):
-    val = [[sym('width'), 0.001],
-           [sym('type'), sym('solid')],
-           [sym('color'), 132, 0, 132, 1]]
-    assoc_set_multiple(sym('stroke'), alist, val)
-  
+def make_stroke():
+    val = Sexp()
+    val.set1('width', 0.001)
+    val.set1('type', sym('solid'))
+    val.set_multiple('color', [132, 0, 132, 1])
+    return val
+    
 
-def set_fill(alist):
-    val = [sym('color'), 255, 255, 255, 0]
-    assoc_set(sym('fill'), alist, val)
+def make_fill():
+    val = Sexp()
+    val.set_multiple('color', [255, 255, 255, 0])
+    return val
 
 
 def make_path(path, pagenum):
     return [sym('path'), path, [sym('page'), str(pagenum) if pagenum else '']]
 
 
+def read_sch(filename):
+    with sexp.PeekStream(filename) as inf:
+        sch = Sch().read_exp(inf)
+        sch.local_name = filename
+        return sch
+
 def make_empty():
     ret = Sch()
     ret.list.append(sym('kicad_sch'))
-    ret.assoc_set('version', 20201015)
-    ret.assoc_set('paper', "A4")
+    ret.set1('version', 20201015)
+    ret.set1('paper', "A4")
     return ret
 
+class Sheet:
+    def __init__(self):
+        self.sch = None
+        self.uuid = None
 
-class Sch(sexp.Sexp):
-    def find_sheet(self, sheet, inst_name):
+class Sch(Sexp):
+    def __init__(self):
+        super().__init__()
+        self.sheets = {}
+        self.local_name = '(unnamed)'
+
+    def __str__(self):
+        return f'<Sch {self.local_name} {id(self) & 0xffff:x}>'
+
+    def find_sheet(self, sheet_spec):
+        input_name = sheet_spec.get1('sch_file')
+        local_name = sheet_spec.get1('local_name')
+        if local_name is None:
+            local_name = os.path.basename(input_name)
+
+        if not os.path.isfile(local_name):
+            with open(local_name, 'w') as outf:
+                with open(input_name) as inf:
+                    outf.write(inf.read())
+
+        if local_name not in self.sheets:
+            sheet = Sheet()
+            sheet.sch = read_sch(local_name)
+            sheet.uuid = sym(str(uuid4()))
+            sheet.local_name = local_name
+            self.sheets[local_name] = sheet
+
+        return self.sheets[local_name]
+
+    def find_sheet_item(self, sheet_spec, inst_name):
         sheet_sym = sym('sheet')
-        for item in self.sch:
+        local_name = sheet_spec.get1('local_name')
+        for item in self:
             if (item_type(item) == sheet_sym
                 and get_prop(item, 'Sheet name') == inst_name
-                and get_prop(item, 'Sheet file') == sheet.filename):
+                and get_prop(item, 'Sheet file') == local_name):
                 return item
         return None
 
-    def add_sheet(self, sheet, inst_name):
-        if self.find_sheet(sheet, inst_name) is None:
+    def add_sheet(self, sheet_spec, inst_name):
+        print(sheet_spec)
+        sheet = self.find_sheet(sheet_spec)
+        sheet_item = self.find_sheet_item(sheet_spec, inst_name)
+        if sheet_item is None:
             posx = random.uniform(160, 250)
             posy = random.uniform(20, 150)
             width = 20
             height = 15
 
-            item = list()
-            item.append(sym('sheet'))
-            item.append([sym('at'), posx, posy])
-            item.append([sym('size'), width, height])
-            set_stroke(item)
-            set_fill(item)
+            item = Sexp('sheet')
+            item.set_multiple('at', [posx, posy])
+            item.set_multiple('size', [width, height])
+            item.set_multiple('stroke', make_stroke())
+            item.set_multiple('fill', make_fill())
 
-            self.uuid = sym(str(uuid4()))
-            item.append([sym('uuid'), self.uuid])
+            item.set1('uuid', sheet.uuid)
 
-            line_height = 1.6
-
-            prop = set_prop(item, 'Sheet name', inst_name)
+            prop = item.set_prop('Sheet name', inst_name)
             set_id(prop, 0)
             set_at(prop, posx, posy - 0.2, 0)
             set_effects(prop, 'bottom')
         
-            prop = set_prop(item, 'Sheet file', sheet.filename)
+            prop = item.set_prop('Sheet file', sheet.local_name)
             set_id(prop, 1)
             set_at(prop, posx, posy + height + 0.2, 0)
             set_effects(prop, 'top')
 
-            self.sch.append(item)
+            self.list.append(item)
 
     def fixup_sheet_instances(self):
         for _, sheet in Sheet.sheets.items():
@@ -243,7 +283,7 @@ class SheetInst:
         return (f'<sheet-inst {self.sheet.filename}'
                 f' {self.inst_name} {self.uuid}>')
 
-class Sheet:
+class Sheet_old:
     sheets = dict()
 
     def add_sheet_inst(self, sheet_inst):

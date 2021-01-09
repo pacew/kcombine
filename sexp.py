@@ -79,7 +79,16 @@ def str_sexp(elt):
         ret += '"'
         return ret
     elif isinstance(elt, Sexp):
-        return elt.__str__()
+        ret = '('
+        need_space = False
+        for subelt in elt.list:
+            if need_space:
+                ret += ' '
+            need_space = True
+            
+            ret += str_sexp(subelt)
+        ret += ')\n'
+        return ret
     elif isinstance(elt, Sym):
         return elt.name
     elif isinstance(elt, int):
@@ -96,8 +105,10 @@ def print_sexp(elt, outf=None):
 
 
 class Sexp:
-    def __init__(self):
+    def __init__(self, key=None):
         self.list = []
+        if key is not None:
+            self.list.append(sym(key))
 
     def append(self, val):
         self.list.append(val)
@@ -122,7 +133,7 @@ class Sexp:
                 return self.read_string(inf)
             elif c == '-' or c == '.' or ('0' <= c <= '9'):
                 inf.unget(c)
-                return self.read_number(inf)
+                return self.read_possible_number(inf)
             else:
                 inf.unget(c)
                 return self.read_symbol(inf)
@@ -144,17 +155,15 @@ class Sexp:
         # initial quote has already been consumed
         return self.read_chars(inf, True)
 
-    def read_number(self, inf):
+    def read_possible_number(self, inf):
         s = self.read_chars(inf, False)
         try:
-            val = int(s)
+            return int(s)
         except ValueError:
             try:
-                val = float(s)
+                return float(s)
             except ValueError:
-                print('can\'t parse number', str(s))
-                val = 'oops'
-        return val
+                return sym(s)
 
     def read_chars(self, inf, for_string):
         ret = ''
@@ -183,22 +192,12 @@ class Sexp:
         return ret
 
     def __str__(self):
-        ret = '('
-        need_space = False
-        for elt in self.list:
-            if need_space:
-                ret += ' '
-            need_space = True
-            
-            ret += str_sexp(elt)
-        ret += ')\n'
-        return ret
+        return str_sexp(self)
 
-
-    def print(self, outf=None):
+    def write(self, outf=None):
         if outf is None:
             outf = sys.stdout
-        outf.write(self.__str__())
+        outf.write(str_sexp(self))
 
     def car(self):
         if len(self.list) > 0:
@@ -225,14 +224,14 @@ class Sexp:
             return item
         return None
 
-    def assoc_get(self, key):
+    def get1(self, key):
         key = self.tosym(key)
         item = self.assoc(key)
         if isinstance(item, Sexp) and len(item.list) >= 2:
             return item.list[1]
         return None
 
-    def assoc_set(self, key, val):
+    def set1(self, key, val):
         key = self.tosym(key)
         item = self.assoc(key)
         if item is Sexp:
@@ -243,12 +242,39 @@ class Sexp:
             item.list = [key, val]
             self.list.append(item)
 
-    def assoc_set_multiple(self, key, val):
+    def get_multiple(self, key):
         key = self.tosym(key)
         item = self.assoc(key)
-        if item is Sexp:
-            del item.list[1:]
-            item.extend(val)
+        if isinstance(item, Sexp) and len(item.list) > 0:
+            return item.list[1:]
+        return []
+
+    def set_multiple(self, key, val):
+        key = self.tosym(key)
+        item = self.assoc(key, True)
+        del item.list[1:]
+        item.list.extend(val)
+
+    def find_prop(self, pname):
+        property_sym = sym('property')
+        for clause in self.list:
+            if isinstance(clause, Sexp) and len(clause.list) >= 3:
+                if clause.list[0] == property_sym and clause.list[1] == pname:
+                    return clause
+        return None
+
+    def get_prop(self, pname):
+        prop = self.find_prop(pname)
+        if prop is None:
+            return None
+        return prop[2]
+
+    def set_prop(self, pname, pval):
+        prop = self.find_prop(pname)
+        if prop is None:
+            prop = Sexp('property')
+            prop.list.extend([pname, pval])
+            self.list.append(prop)
         else:
-            item = Sexp()
-            item.list = [key] + val
+            prop[2] = pval
+        return prop
