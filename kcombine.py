@@ -9,8 +9,12 @@ from sexp import sym
 
 
 def kcombine(config):
-    output = config.assoc_get(sym('output'))
+    output = config.assoc_get('output')
     print(output)
+    sheet_sym = sym('sheet')
+    for item in config:
+        if sexp.keyeq(item, 'sheet'):
+            print(item)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

@@ -9,6 +9,9 @@ class Sym:
     def __init__(self, name):
         self.name = name
 
+    def __str__(self):
+        return self.name
+
     def __repr__(self):
         return f'|{self.name}|'
 
@@ -23,6 +26,10 @@ class Sym:
 
 def sym(name):
     return Sym.lookup(name)
+
+def keyeq(item, name):
+    return isinstance(item, Sexp) and item.keyeq(name)
+
 
 class PeekStream:
     def __init__(self, filename):
@@ -89,6 +96,10 @@ def print_sexp(elt, outf=None):
 
 
 class Sexp:
+    def __iter__(self):
+        for item in self.list:
+            yield item
+
     def read_exp(self, inf):
         while True:
             c = inf.getc()
@@ -188,7 +199,16 @@ class Sexp:
             return self.list[0]
         return None
 
+    def tosym(self, name):
+        if isinstance(name, str):
+            return sym(name)
+        return name
+
+    def keyeq(self, name):
+        return len(self.list) > 0 and self.list[0] == self.tosym(name)
+
     def assoc(self, key, create=False):
+        key = self.tosym(key)
         for item in self.list:
             if isinstance(item, Sexp) and item.car() == key:
                 return item
@@ -200,12 +220,14 @@ class Sexp:
         return None
 
     def assoc_get(self, key):
+        key = self.tosym(key)
         item = self.assoc(key)
         if isinstance(item, Sexp) and len(item.list) >= 2:
             return item.list[1]
         return None
 
     def assoc_set(self, key, val):
+        key = self.tosym(key)
         item = assoc(key)
         if item is Sexp:
             del item.list[1:]
@@ -216,6 +238,7 @@ class Sexp:
             self.list.append(item)
 
     def assoc_set_multiple(self, key, val):
+        key = self.tosym(key)
         item = assoc(key)
         if item is Sexp:
             del item.list[1:]
