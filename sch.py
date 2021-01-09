@@ -19,105 +19,38 @@ def item_type(item):
         return item[0]
     return None
 
-
-def find_prop(item, pname):
-    property = sym('property')
-    for clause in item:
-        if isinstance(clause, list) and len(clause) >= 3:
-            if clause[0] == property and clause[1] == pname:
-                return clause
-    return None
-
-
-def get_prop(item, pname):
-    prop = find_prop(item, pname)
-    if prop is None:
-        return None
-    return prop[2]
-
-
-def set_prop(item, pname, pval):
-    prop = find_prop(item, pname)
-    if prop is None:
-        prop = [sym('property'), pname, pval]
-        item.append(prop)
-    else:
-        prop[2] = pval
-    return prop
-
-
-def assoc(key, alist, create=False):
-    for item in alist:
-        if isinstance(item, list) and len(item) > 0 and item[0] == key:
-            return item
-    if create:
-        item = [key]
-        alist.append(item)
-        return item
-    return None
-
-
-def assoc_get(key, alist):
-    item = assoc(key, alist)
-    if isinstance(item, list) and len(item) >= 2:
-        return item[1]
-    return None
-
-
-def assoc_set(key, alist, val):
-    item = assoc(key, alist)
-    if item is None:
-        alist.append([key, val])
-    else:
-        del item[1:]
-        item.append(val)
-
-
-def assoc_set_multiple(key, alist, val):
-    item = assoc(key, alist)
-    if item is None:
-        item = [key]
-        alist.append(item)
-    del item[1:]
-    item.extend(val)
-
-
 def set_id(prop, val):
-    prop.set1('id', val)
+    prop.put1('id', val)
                 
 def set_at(prop, x, y, rotation):
-    prop.set_multiple('at', [x, y, rotation])
+    prop.put_multiple('at', [x, y, rotation])
 
-# (effects
-#   (font (size 1.27 1.27))
-#   (justify left bottom)
-# )
 def set_effects(prop, top_bottom):
     elts = Sexp()
-    elts.set1('font', Sexp(key='size', elts=[1.27, 1.27]))
-    elts.set_multiple('justify', Sexp(elts=[sym('left'), sym(top_bottom)]))
+    elts.put1('font', Sexp(key='size', elts=[1.27, 1.27]))
+    elts.put_multiple('justify', Sexp(elts=[sym('left'), sym(top_bottom)]))
     
-    prop.set_multiple('effects', elts)
+    prop.put_multiple('effects', elts)
 
 
 def make_stroke():
     val = Sexp()
-    val.set1('width', 0.001)
-    val.set1('type', sym('solid'))
-    val.set_multiple('color', [132, 0, 132, 1])
+    val.put1('width', 0.001)
+    val.put1('type', sym('solid'))
+    val.put_multiple('color', [132, 0, 132, 1])
     return val
     
 
 def make_fill():
     val = Sexp()
-    val.set_multiple('color', [255, 255, 255, 0])
+    val.put_multiple('color', [255, 255, 255, 0])
     return val
 
 
 def make_path(path, page_num):
     val = Sexp('path')
     val.append(path)
-    val.set1('page', str(page_num) if page_num else '')
+    val.put1('page', str(page_num) if page_num else '')
     return val
 
 
@@ -130,8 +63,8 @@ def read_sch(filename):
 def make_empty():
     ret = Sch()
     ret.list.append(sym('kicad_sch'))
-    ret.set1('version', 20201015)
-    ret.set1('paper', "A4")
+    ret.put1('version', 20201015)
+    ret.put1('paper', "A4")
     return ret
 
 # items.append(f'u:{str(self.uuid)[0:6]}')
@@ -175,10 +108,9 @@ class Sch(Sexp):
         if local_name is None:
             local_name = os.path.basename(input_name)
 
-        if not os.path.isfile(local_name):
-            with open(local_name, 'w') as outf:
-                with open(input_name) as inf:
-                    outf.write(inf.read())
+        with open(local_name, 'w') as outf:
+            with open(input_name) as inf:
+                outf.write(inf.read())
 
         if local_name not in self.sheets:
             sheet = Sheet()
@@ -192,9 +124,9 @@ class Sch(Sexp):
         sheet_sym = sym('sheet')
         local_name = sheet_spec.get1('local_name')
         for item in self:
-            if (item_type(item) == sheet_sym
-                and get_prop(item, 'Sheet name') == inst_name
-                and get_prop(item, 'Sheet file') == local_name):
+            if (keyeq(item, 'sheet')
+                and item.get_prop('Sheet name') == inst_name
+                and item.get_prop('Sheet file') == local_name):
                 return item
         return None
 
@@ -208,13 +140,13 @@ class Sch(Sexp):
             height = 15
 
             item = Sexp('sheet')
-            item.set_multiple('at', [posx, posy])
-            item.set_multiple('size', [width, height])
-            item.set_multiple('stroke', make_stroke())
-            item.set_multiple('fill', make_fill())
+            item.put_multiple('at', [posx, posy])
+            item.put_multiple('size', [width, height])
+            item.put_multiple('stroke', make_stroke())
+            item.put_multiple('fill', make_fill())
 
             uuid = sym(str(uuid4()))
-            item.set1('uuid', uuid)
+            item.put1('uuid', uuid)
 
             prop = item.set_prop('Sheet name', inst_name)
             set_id(prop, 0)
@@ -237,7 +169,6 @@ class Sch(Sexp):
         page_num = 1
         for item in self.list:
             if keyeq(item, 'sheet'):
-                inst_name = item.get_prop('Sheet name')
                 local_name = item.get_prop('Sheet file')
 
                 sheet = self.sheets.get(local_name)
@@ -258,40 +189,54 @@ class Sch(Sexp):
                 si.append(make_path(path, page_num))
                 page_num = None
 
-        self.set_multiple('sheet_instances', si)
+        self.put_multiple('sheet_instances', si)
 
 
     def fixup_symbol_instances(self):
+        sheet_uuids_used = set()
+        for _, sheet in self.sheets.items():
+            for sheet_inst in sheet.insts:
+                sheet_inst_uuid = sheet_inst.get1('uuid')
+                sheet_uuids_used.add(sheet_inst_uuid)
+
         symbol_instances = []
 
-        symbol_sym = sym('symbol')
-        for _, sheet in Sheet.sheets.items():
-            for sheet_inst in sheet.sheet_insts:
-                for item in sheet.sch.sch:
-                    if item_type(item) == symbol_sym:
-                        uuid = assoc_get(sym('uuid'), item)
-                        ref = get_prop(item, 'Reference')
-                        unit = get_prop(item, 'unit')
-                        value = get_prop(item, 'Value')
-                        footprint = get_prop(item, 'Footprint')
+        for inst in self.get_multiple('symbol_instances'):
+            if keyeq(inst, 'path'):
+                parts = inst.cadr().split('/')
+                if len(parts) <= 2:
+                    symbol_instances.append(inst)
+
+        for _, sheet in self.sheets.items():
+            for sheet_inst in sheet.insts:
+                sheet_inst_uuid = sheet_inst.get1('uuid')
+                sheet_inst_name = sheet_inst.get_prop('Sheet name')
+                for item in sheet.sch:
+                    if keyeq(item, 'symbol'):
+                        uuid = item.get1('uuid')
+                        unit = item.get1('unit')
+                        raw_ref = item.get_prop('Reference')
+                        value = item.get_prop('Value')
+                        footprint = item.get_prop('Footprint')
                         if unit is None:
                             unit = 1
 
-                        path = f'/{sheet_inst.uuid.name}/{uuid}'
+                        path = f'/{sheet_inst_uuid}/{uuid}'
 
-                        core_ref = re.sub('^[^:]*:', '', ref)
-                        ref = f'{sheet_inst.inst_name}:{core_ref}'
+                        sub_ref = re.sub('^[^:]*:', '', raw_ref)
+                        ref = f'{sheet_inst_name}:{sub_ref}'
 
-                        syminst = [sym('path'), path,
-                                   [sym('reference'), ref],
-                                   [sym('unit'), unit],
-                                   [sym('value'), value],
-                                   [sym('footprint'), footprint]]
+                        syminst = Sexp('path')
+                        syminst.append(path)
+                        syminst.put1('reference', ref)
+                        syminst.put1('unit', unit)
+                        syminst.put1('value', value)
+                        syminst.put1('footprint', footprint)
                         symbol_instances.append(syminst)
 
-        symbol_instances.sort(key=lambda item: assoc_get(sym('reference'), item))
-        assoc_set_multiple(sym('symbol_instances'), self.sch, 
-                           symbol_instances)
+        symbol_instances.sort(key=lambda item: item.get1('reference'))
+        si = Sexp(elts=symbol_instances)
+        self.put_multiple('symbol_instances', si)
         
 class SheetInst:
     def __init__(self, sheet, inst_name, uuid):

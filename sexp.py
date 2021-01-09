@@ -232,7 +232,7 @@ class Sexp:
             return item.list[1]
         return None
 
-    def set1(self, key, val):
+    def put1(self, key, val):
         key = self.tosym(key)
         item = self.assoc(key)
         if item is Sexp:
@@ -250,7 +250,7 @@ class Sexp:
             return item.list[1:]
         return []
 
-    def set_multiple(self, key, val):
+    def put_multiple(self, key, val):
         key = self.tosym(key)
         item = self.assoc(key, True)
         del item.list[1:]
@@ -267,7 +267,6 @@ class Sexp:
     def get_prop(self, pname):
         prop = self.find_prop(pname)
 
-        print(prop)
         if prop is None:
             return None
         return prop.list[2]
@@ -281,3 +280,9 @@ class Sexp:
         else:
             prop[2] = pval
         return prop
+
+    def cadr(self):
+        if len(self.list) < 2:
+            return None
+        return self.list[1]
+    

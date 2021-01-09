@@ -149,7 +149,7 @@
     (property "Reference" "C1" (id 0) (at 149.86 74.93 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Value" "C" (id 1) (at 149.86 77.47 0)
+    (property "Value" "100u" (id 1) (at 149.86 77.47 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Footprint" "Capacitor_SMD:C_0805_2012Metric" (id 2) (at 147.0152 80.01 0)
@@ -166,7 +166,7 @@
 
   (symbol_instances
     (path "/88a958a5-1a43-4bdf-a829-8f7aace2cefd"
-      (reference "C1") (unit 1) (value "C") (footprint "Capacitor_SMD:C_0805_2012Metric")
+      (reference "C1") (unit 1) (value "100u") (footprint "Capacitor_SMD:C_0805_2012Metric")
     )
     (path "/9100811d-f90b-4a65-a37f-2871564a20b7"
       (reference "TP1") (unit 1) (value "TestPoint") (footprint "TestPoint:TestPoint_Pad_D1.0mm")

@@ -3,6 +3,6 @@
  (sheet (sch_file "cap/cap.kicad_sch")
 	(git_tag "HEAD")
 	(local_name "mycap.kicad_sch")
-	(inst "cap1"))
+	(inst "cap1" "cap2"))
  )
 

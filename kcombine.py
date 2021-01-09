@@ -10,12 +10,10 @@ from sexp import sym
 
 def kcombine(config):
     output_filename = config.get1('output')
-    # try:
-    #     top = sch.read_sch(output_filename)
-    # except FileNotFoundError:
-    #     top = sch.make_empty()
-    # print(top)
-    top = sch.make_empty()
+    try:
+        top = sch.read_sch(output_filename)
+    except FileNotFoundError:
+        top = sch.make_empty()
 
     sheet_sym = sym('sheet')
     for sheet_spec in config:
@@ -25,6 +23,7 @@ def kcombine(config):
                 top.add_sheet(sheet_spec, inst)
 
     top.generate_sheet_instances()
+    top.fixup_symbol_instances()
 
     with open(output_filename, 'w') as outf:
         top.write(outf)
@@ -36,7 +35,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     config = sexp.read_sexp(args.config)
-    print(config)
     kcombine(config)
 
 
