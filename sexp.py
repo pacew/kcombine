@@ -105,10 +105,12 @@ def print_sexp(elt, outf=None):
 
 
 class Sexp:
-    def __init__(self, key=None):
+    def __init__(self, key=None, elts=None):
         self.list = []
-        if key is not None:
+        if key:
             self.list.append(sym(key))
+        if elts:
+            self.list.extend(elts)
 
     def append(self, val):
         self.list.append(val)

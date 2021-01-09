@@ -88,11 +88,16 @@ def set_id(prop, val):
 def set_at(prop, x, y, rotation):
     prop.set_multiple('at', [x, y, rotation])
 
+# (effects
+#   (font (size 1.27 1.27))
+#   (justify left bottom)
+# )
 def set_effects(prop, top_bottom):
-    val = Sexp('font')
-    val.set_multiple('size', [1.27, 1.27])
-    val.set_multiple('justify', [sym('left'), sym(top_bottom)])
-    prop.set1('effects', val)
+    elts = Sexp()
+    elts.set1('font', Sexp(key='size', elts=[1.27, 1.27]))
+    elts.set_multiple('justify', Sexp(elts=[sym('left'), sym(top_bottom)]))
+    
+    prop.set_multiple('effects', elts)
 
 
 def make_stroke():
