@@ -4,7 +4,7 @@ import sys
 import os
 from uuid import uuid4
 import sexp
-from sexp import sym, Sexp
+from sexp import sym, Sexp, keyeq
 
 import re
 import random
@@ -114,8 +114,11 @@ def make_fill():
     return val
 
 
-def make_path(path, pagenum):
-    return [sym('path'), path, [sym('page'), str(pagenum) if pagenum else '']]
+def make_path(path, page_num):
+    val = Sexp('path')
+    val.append(path)
+    val.set1('page', str(page_num) if page_num else '')
+    return val
 
 
 def read_sch(filename):
@@ -131,10 +134,31 @@ def make_empty():
     ret.set1('paper', "A4")
     return ret
 
+# items.append(f'u:{str(self.uuid)[0:6]}')
+
 class Sheet:
     def __init__(self):
         self.sch = None
-        self.uuid = None
+        self.local_name = None
+        self.page_num = None
+        self.insts = []
+
+    def __repr__(self):
+        items = []
+        if self.local_name:
+            items.append(re.sub('[.].*', '', self.local_name))
+
+        if self.page_num:
+            items.append(f'p{self.page_num}')
+
+        items.append(f'insts={len(self.insts)}')
+
+        items.append(f'{id(self) & 0xffff:x}')
+
+        msg = ' '.join(items)
+
+        return f'<sheet {msg}>'
+
 
 class Sch(Sexp):
     def __init__(self):
@@ -159,7 +183,6 @@ class Sch(Sexp):
         if local_name not in self.sheets:
             sheet = Sheet()
             sheet.sch = read_sch(local_name)
-            sheet.uuid = sym(str(uuid4()))
             sheet.local_name = local_name
             self.sheets[local_name] = sheet
 
@@ -176,7 +199,6 @@ class Sch(Sexp):
         return None
 
     def add_sheet(self, sheet_spec, inst_name):
-        print(sheet_spec)
         sheet = self.find_sheet(sheet_spec)
         sheet_item = self.find_sheet_item(sheet_spec, inst_name)
         if sheet_item is None:
@@ -191,7 +213,8 @@ class Sch(Sexp):
             item.set_multiple('stroke', make_stroke())
             item.set_multiple('fill', make_fill())
 
-            item.set1('uuid', sheet.uuid)
+            uuid = sym(str(uuid4()))
+            item.set1('uuid', uuid)
 
             prop = item.set_prop('Sheet name', inst_name)
             set_id(prop, 0)
@@ -205,44 +228,38 @@ class Sch(Sexp):
 
             self.list.append(item)
 
-    def fixup_sheet_instances(self):
-        for _, sheet in Sheet.sheets.items():
-            sheet.sheet_insts = []
-            sheet.pagenum = None
+    def generate_sheet_instances(self):
+        for _, sheet in self.sheets.items():
+            sheet.insts = []
+            sheet.page_num = None
 
-        sheet_sym = sym('sheet')
-        uuid_sym = sym('uuid')
         sheets_used = list()
-        pagenum = 2
-        for item in self.sch:
-            if item_type(item) == sheet_sym:
-                uuid = assoc_get(uuid_sym, item)
-                inst_name = get_prop(item, 'Sheet name')
-                filename = get_prop(item, 'Sheet file')
+        page_num = 1
+        for item in self.list:
+            if keyeq(item, 'sheet'):
+                inst_name = item.get_prop('Sheet name')
+                local_name = item.get_prop('Sheet file')
 
-                sheet = Sheet.lookup_by_file(filename)
+                sheet = self.sheets.get(local_name)
                 if sheet:
-                    if sheet.pagenum is None:
-                        sheet.pagenum = pagenum
-                        pagenum += 1
-                    SheetInst(sheet, inst_name, uuid)
+                    if sheet.page_num is None:
+                        page_num += 1
+                        sheet.page_num = page_num
+                    sheet.insts.append(item)
 
-        sheet_instances_sym = sym('sheet_instances')
-        si = [sheet_instances_sym, make_path('/', 1)]
+        si = Sexp()
+        si.append(make_path('/', 1))
 
-        for _, sheet in Sheet.sheets.items():
-            pagenum = sheet.pagenum
-            for sheet_inst in sheet.sheet_insts:
-                path = f'/{sheet_inst.uuid.name}/'
-                si.append(make_path(path, pagenum))
-                pagenum = None
+        for _, sheet in self.sheets.items():
+            page_num = sheet.page_num
+            for inst in sheet.insts:
+                uuid = inst.get1('uuid')
+                path = f'/{str(uuid)}/'
+                si.append(make_path(path, page_num))
+                page_num = None
 
-        elt = assoc(sheet_instances_sym, self.sch)
-        if elt:
-            elt.clear()
-            elt.append(si)
-        else:
-            self.sch.append(si)
+        self.set_multiple('sheet_instances', si)
+
 
     def fixup_symbol_instances(self):
         symbol_instances = []

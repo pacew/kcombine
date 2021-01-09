@@ -24,7 +24,8 @@ def kcombine(config):
             for inst in insts:
                 top.add_sheet(sheet_spec, inst)
 
-    print(top)
+    top.generate_sheet_instances()
+
     with open(output_filename, 'w') as outf:
         top.write(outf)
 

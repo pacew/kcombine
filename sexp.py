@@ -103,7 +103,6 @@ def print_sexp(elt, outf=None):
         outf = sys.stdout
     outf.write(str_sexp(elt))
 
-
 class Sexp:
     def __init__(self, key=None, elts=None):
         self.list = []
@@ -267,9 +266,11 @@ class Sexp:
 
     def get_prop(self, pname):
         prop = self.find_prop(pname)
+
+        print(prop)
         if prop is None:
             return None
-        return prop[2]
+        return prop.list[2]
 
     def set_prop(self, pname, pval):
         prop = self.find_prop(pname)
