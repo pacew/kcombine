@@ -194,6 +194,7 @@ def is_just_sheet(sch):
 
     reject_clauses = {
         sym('no_connect'),
+        sym('wire'),
     }
 
     sheet_count = 0
@@ -219,11 +220,14 @@ def is_just_sheet(sch):
     
     return False
 
+def round_to_50mil(x):
+    return math.floor(x / 25.4 * 200) / 200 * 25.4
+
 def make_sheet_item_prototype(sheet, inst_name):
-    posx = random.uniform(160, 250)
-    posy = random.uniform(20, 150)
-    width = 20
-    height = 15
+    posx = round_to_50mil(random.uniform(160, 250))
+    posy = round_to_50mil(random.uniform(20, 150))
+    width = 0.7 * 25.4
+    height = 0.5 * 25.4
 
     item = Sexp('sheet')
     item.put_multiple('at', [posx, posy])
@@ -294,7 +298,8 @@ class Sch(Sexp):
                                     sheet.item_prototype.get_prop('Sheet file'))
             sheet.sch = read_sch(src_path)
         else:
-            print('can\'t handle top level', sch_file, '0 or 1 sheet required')
+            print((f'can\'t handle top level {sch_file}\n'
+                   f'must have no sheets, or just 1 sheet all by itself'))
             sys.exit(1)
 
         with open(sheet.local_name, 'w') as outf:
@@ -430,21 +435,35 @@ def generate_pcb(outname, sch):
     for _, sheet in sch.sheets.items():
         pcb = sheet.pcb
         for sheet_inst in sheet.insts:
+            nnets = len(pcb.nets)
             sheet_inst.net_offset = net_offset
-            net_offset += len(pcb.nets)
+            net_offset += nnets
+
+            sheet_inst.new_nets = []
+            for idx in range(nnets):
+                old_name = pcb.nets[idx]
+                new_name = old_name
+                if re.match('^Net-', old_name) or re.match('.*/', old_name):
+                    inst_name = sheet_inst.get_prop('Sheet name')
+                    basename = re.sub('.*/', '', old_name)
+                    new_name = f'/{inst_name}/{basename}'
+                print(old_name, new_name)
+                sheet_inst.new_nets.append(new_name)
 
     for _, sheet in sch.sheets.items():
         pcb = sheet.pcb
         for sheet_inst in sheet.insts:
             for idx in range(len(pcb.nets)):
-                item = Sexp('net', elts=[idx + sheet_inst.net_offset, pcb.nets[idx]])
+                net_num = idx + sheet_inst.net_offset
+                net_name = sheet_inst.new_nets[idx]
+                item = Sexp('net', elts=[net_num, net_name])
                 out.append(item)
 
     stage_y = 0
 
     for _, sheet in sch.sheets.items():
         pcb = sheet.pcb
-        for inst in sheet.insts:
+        for sheet_inst in sheet.insts:
             dest_x = -pcb.width - 10
             dest_y = stage_y
 
@@ -466,13 +485,13 @@ def generate_pcb(outname, sch):
                             elt = Sexp('at', elts=[elt.list[1] + dx, elt.list[2] + dy])
                         new.append(elt)
                     item = Sexp(elts=new)
-                    item = fix_net(item, sheet, inst.net_offset)
+                    item = fix_net(item, sheet, sheet_inst)
                     out.append(item)
 
                 elif keyeq(old_item, 'segment'):
                     item = copy.copy(old_item)
                     item = move_start_end(item, dx, dy)
-                    item.list = fix_net(item, sheet, inst.net_offset)
+                    item.list = fix_net(item, sheet, sheet_inst)
                     out.append(item)
 
             stage_y += pcb.height + 10
@@ -481,15 +500,18 @@ def generate_pcb(outname, sch):
     with open(outname, 'w') as outf:
         out.write(outf)
 
-def fix_net(item, sheet, net_offset):
+def fix_net(item, sheet, sheet_inst):
     ret = []
     for elt in item:
         if keyeq(elt, 'net'):
             elt = copy.copy(elt)
-            elt.list[1] += net_offset
+            old_idx = elt.list[1]
+            elt.list[1] = old_idx + sheet_inst.net_offset
+            if len(elt.list) > 2:
+                elt.list[2] = sheet_inst.new_nets[old_idx]
 
         if isinstance(elt, Sexp):
-            elt = fix_net(elt, sheet, net_offset)
+            elt = fix_net(elt, sheet, sheet_inst)
 
         ret.append(elt)
     return Sexp(elts=ret)

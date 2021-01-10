@@ -1,3 +1,10 @@
+if netname starts with Net- or has a slash, remove every to last slash,
+and give the name /instname/BASENAME
+
+
+
+================================================================
+
 https://docs.google.com/document/d/1y7AL9M4350vifdX3lmcU77sLQ8YWy-fBtMmfsXEObqg/edit
 https://forum.kicad.info/t/replicate-layout-action-plugin/8539
 
