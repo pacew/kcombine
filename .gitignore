@@ -6,3 +6,7 @@
 ccombine
 __pycache__/
 combined/
+board1.kicad_prl
+board1.kicad_pro
+board1.kicad_sch
+fp-info-cache
