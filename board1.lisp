@@ -3,6 +3,6 @@
  (sheet (sch_file "led/led.kicad_sch")
 	(local_name "myled.kicad_sch")
 	(git_tag "HEAD")
-	(inst "led1"))
+	(inst "led1" "led2"))
  )
 

@@ -423,8 +423,6 @@ class Sch(Sexp):
 def generate_pcb(outname, sch):
     out = read_pcb('empty.kicad_pcb')
 
-    stage_y = 0
-
     for _, sheet in sch.sheets.items():
         sheet.pcb.setup()
 
@@ -442,6 +440,8 @@ def generate_pcb(outname, sch):
                 item = Sexp('net', elts=[idx + sheet_inst.net_offset, pcb.nets[idx]])
                 out.append(item)
 
+    stage_y = 0
+
     for _, sheet in sch.sheets.items():
         pcb = sheet.pcb
         for inst in sheet.insts:
@@ -456,35 +456,52 @@ def generate_pcb(outname, sch):
                     item = copy.copy(old_item)
                     if item.get1('layer') == 'Edge.Cuts':
                         item.put1('layer', 'F.Fab')
-                    move_start_end(item, dx, dy)
+                    item = move_start_end(item, dx, dy)
                     out.append(item)
 
                 elif keyeq(old_item, 'footprint'):
-                    item = copy.copy(old_item)
-                    x, y = item.get_multiple('at')
-                    item.put_multiple('at', [x + dx, y + dy])
-                    fix_net(item, sheet, sheet_inst.net_offset)
+                    new = []
+                    for elt in old_item:
+                        if keyeq(elt, 'at'):
+                            elt = Sexp('at', elts=[elt.list[1] + dx, elt.list[2] + dy])
+                        new.append(elt)
+                    item = Sexp(elts=new)
+                    item = fix_net(item, sheet, inst.net_offset)
                     out.append(item)
 
                 elif keyeq(old_item, 'segment'):
                     item = copy.copy(old_item)
-                    move_start_end(item, dx, dy)
-                    fix_net(item, sheet, sheet_inst.net_offset)
+                    item = move_start_end(item, dx, dy)
+                    item.list = fix_net(item, sheet, inst.net_offset)
                     out.append(item)
+
+            stage_y += pcb.height + 10
                         
 
     with open(outname, 'w') as outf:
         out.write(outf)
 
 def fix_net(item, sheet, net_offset):
+    ret = []
     for elt in item:
         if keyeq(elt, 'net'):
+            elt = copy.copy(elt)
             elt.list[1] += net_offset
 
         if isinstance(elt, Sexp):
-            fix_net(elt, sheet, net_offset)
+            elt = fix_net(elt, sheet, net_offset)
+
+        ret.append(elt)
+    return Sexp(elts=ret)
 
 def move_start_end(item, dx, dy):
-    for key in ['start', 'end']:
-        x, y = item.get_multiple(key)
-        item.put_multiple(key, [x + dx, y + dy])
+    ret = []
+    for elt in item:
+        if keyeq(elt, 'start') or keyeq(elt, 'end'):
+            elt = Sexp(elt.list[0], elts=[elt.list[1] + dx, elt.list[2] + dy])
+        if isinstance(elt, Sexp):
+            elt = move_start_end(elt, dx, dy)
+
+        ret.append(elt)
+
+    return Sexp(elts=ret)

@@ -111,7 +111,9 @@ class Sexp:
     def __init__(self, key=None, elts=None):
         self.list = []
         if key:
-            self.list.append(sym(key))
+            if not isinstance(key, Sym):
+                key = sym(key)
+            self.list.append(key)
         if elts:
             self.list.extend(elts)
 
