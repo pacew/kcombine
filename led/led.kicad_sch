@@ -6,17 +6,17 @@
   )
 
 
-  (sheet (at 135.255 81.915) (size 26.67 20.32)
+  (sheet (at 151.765 78.105) (size 26.67 20.32)
     (stroke (width 0.001) (type solid) (color 132 0 132 1))
     (fill (color 255 255 255 0.0000))
     (uuid f6f98991-c174-4124-bca3-675ab210d740)
-    (property "Sheet name" "led" (id 0) (at 135.255 81.2791 0)
+    (property "Sheet name" "led" (id 0) (at 151.765 77.4691 0)
       (effects (font (size 1.27 1.27)) (justify left bottom))
     )
-    (property "Sheet file" "led-sheet.kicad_sch" (id 1) (at 135.255 102.7439 0)
+    (property "Sheet file" "led-sheet.kicad_sch" (id 1) (at 151.765 98.9339 0)
       (effects (font (size 1.27 1.27)) (justify left top))
     )
-    (pin "control" input (at 135.255 86.995 180)
+    (pin "control" input (at 151.765 83.185 180)
       (effects (font (size 1.27 1.27)) (justify left))
     )
   )
@@ -27,6 +27,12 @@
   )
 
   (symbol_instances
+    (path "/f6f98991-c174-4124-bca3-675ab210d740/7c882403-2416-47bd-8142-e59dd72b85d2"
+      (reference "#FLG?") (unit 1) (value "PWR_FLAG") (footprint "")
+    )
+    (path "/f6f98991-c174-4124-bca3-675ab210d740/c3651b6a-2384-4d61-a9c6-16a6611a5d34"
+      (reference "#FLG?") (unit 1) (value "PWR_FLAG") (footprint "")
+    )
     (path "/f6f98991-c174-4124-bca3-675ab210d740/301a2811-f3c7-43e4-b172-f5cfe8cfc596"
       (reference "#PWR05") (unit 1) (value "+3V3") (footprint "")
     )

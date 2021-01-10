@@ -262,6 +262,7 @@ class Sch(Sexp):
         super().__init__()
         self.sheets = {}
         self.local_name = '(unnamed)'
+        self.symbol_ref_to_path = {}
 
     def __str__(self):
         return f'<Sch {self.local_name} {id(self) & 0xffff:x}>'
@@ -401,6 +402,8 @@ class Sch(Sexp):
                         sub_ref = re.sub('^[^:]*:', '', raw_ref)
                         ref = f'{sheet_inst_name}:{sub_ref}'
 
+                        self.symbol_ref_to_path[ref] = path
+
                         syminst = Sexp('path')
                         syminst.append(path)
                         syminst.put1('reference', ref)
@@ -443,11 +446,15 @@ def generate_pcb(outname, sch):
             for idx in range(nnets):
                 old_name = pcb.nets[idx]
                 new_name = old_name
-                if re.match('^Net-', old_name) or re.match('.*/', old_name):
+                if re.match('^Net-', old_name):
+                    inst_name = sheet_inst.get_prop('Sheet name')
+                    parts = re.match('^Net-.(.*).$', old_name)
+                    basename = parts.group(1)
+                    new_name = f'{inst_name}:{basename}'
+                elif re.match('.*/', old_name):
                     inst_name = sheet_inst.get_prop('Sheet name')
                     basename = re.sub('.*/', '', old_name)
                     new_name = f'/{inst_name}/{basename}'
-                print(old_name, new_name)
                 sheet_inst.new_nets.append(new_name)
 
     for _, sheet in sch.sheets.items():
@@ -486,6 +493,7 @@ def generate_pcb(outname, sch):
                         new.append(elt)
                     item = Sexp(elts=new)
                     item = fix_net(item, sheet, sheet_inst)
+                    item = fix_footprint(item, sheet, sheet_inst, sch)
                     out.append(item)
 
                 elif keyeq(old_item, 'segment'):
@@ -499,6 +507,56 @@ def generate_pcb(outname, sch):
 
     with open(outname, 'w') as outf:
         out.write(outf)
+
+# item is a footprint.  change:
+# (property "Sheet file" "led-sheet.kicad_sch")
+# (property "Sheet name" "led")
+# (path "/f6f98991-c174-4124-bca3-675ab210d740/a4b061e3-44cf-4957-b795-e75f05b2acf4")
+# (attr smd)
+# (fp_text reference "Q1" ...
+
+def get_footprint_ref(item):
+    reference_sym = sym('reference')
+    for elt in item:
+        if keyeq(elt, 'fp_text') and elt.list[1] == reference_sym:
+            return elt.list[2]
+    return None
+
+def fix_footprint(item, sheet, sheet_inst, sch):
+
+    old_ref = get_footprint_ref(item)
+    if old_ref is None:
+        print('footpint is missing ref', item)
+        sys.exit(1)
+
+    sheet_inst_name = sheet_inst.get_prop('Sheet name')
+
+    sub_ref = re.sub('^[^:]*:', '', old_ref)
+    new_ref = f'{sheet_inst_name}:{sub_ref}'
+            
+    new_path = sch.symbol_ref_to_path[new_ref]
+
+    reference_sym = sym('reference')
+
+    ret = []
+    for elt in item:
+        if keyeq(elt, 'property') and elt.list[1] == 'Sheet file':
+            elt = copy.copy(elt)
+            elt.list[2] = sheet_inst.get_prop('Sheet file')
+        elif keyeq(elt, 'property') and elt.list[1] == 'Sheet name':
+            elt = copy.copy(elt)
+            elt.list[2] = sheet_inst_name
+        elif keyeq(elt, 'path'):
+            elt = copy.copy(elt)
+            elt.list[1] = new_path
+        elif keyeq(elt, 'fp_text') and elt.list[1] == reference_sym:
+            elt = copy.copy(elt)
+            elt.list[2] = new_ref
+            
+        ret.append(elt)
+    return Sexp(elts=ret)
+        
+
 
 def fix_net(item, sheet, sheet_inst):
     ret = []
