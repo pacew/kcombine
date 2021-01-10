@@ -9,5 +9,6 @@ combined/
 board1.kicad_prl
 board1.kicad_pro
 board1.kicad_sch
+board1.kicad_pcb
 fp-info-cache
 myled.kicad_sch

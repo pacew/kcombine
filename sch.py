@@ -2,6 +2,7 @@
 
 import sys
 import os
+import math
 from uuid import uuid4
 import sexp
 from sexp import sym, Sexp, keyeq
@@ -61,6 +62,46 @@ def read_sch(filename):
         sch.local_name = filename
         return sch
 
+def read_pcb(filename):
+    with sexp.PeekStream(filename) as inf:
+        pcb = Pcb().read_exp(inf)
+        return pcb
+
+class Pcb(Sexp):
+    def __init__(self):
+        pass
+    
+    def setup(self):
+        left = math.inf
+        right = -math.inf
+        top = math.inf
+        bottom = -math.inf
+
+        self.nets = []
+
+        for item in self:
+            if keyeq(item, 'gr_line') and item.get1('layer') == 'Edge.Cuts':
+                x0, y0 = item.get_multiple('start')
+                x1, y1 = item.get_multiple('end')
+                left = min(left, x0, x1)
+                right = max(right,x0, x1)
+                top = min(top, y0, y1)
+                bottom = max(bottom, y0, y1 )
+
+            if keyeq(item, 'net'):
+                net_id = item.list[1]
+                net_name = item.list[2]
+
+                if net_id != len(self.nets):
+                    raise ValueError('unexpected net_id', net_id, len(self.nets))
+                self.nets.append(net_name)
+
+        self.left = left
+        self.top = top
+        self.width = right - left
+        self.height = bottom - top
+
+
 def make_empty():
     ret = Sch()
     ret.list.append(sym('kicad_sch'))
@@ -71,6 +112,7 @@ def make_empty():
 class Sheet:
     def __init__(self):
         self.sch = None
+        self.pcb = None
         self.local_name = None
         self.page_num = None
         self.insts = []
@@ -90,6 +132,8 @@ class Sheet:
         msg = ' '.join(items)
 
         return f'<sheet {msg}>'
+
+
 
 # no sub sheets on top level
 def is_simple(sch):
@@ -208,6 +252,7 @@ def move(exp, dx, dy):
         for subexp in exp:
             move(subexp, dx, dy)
 
+
 class Sch(Sexp):
     def __init__(self):
         super().__init__()
@@ -231,6 +276,10 @@ class Sch(Sexp):
 
         sch_file = sheet_spec.get1('sch_file')
         sheet.sch = read_sch(sch_file)
+
+        pcb_filename = os.path.splitext(sch_file)[0] + '.kicad_pcb'
+        if os.path.isfile(pcb_filename):
+            sheet.pcb = read_pcb(pcb_filename)
 
         sheet.local_name = sheet_spec.get1('local_name')
         if sheet.local_name is None:
@@ -332,7 +381,6 @@ class Sch(Sexp):
             for sheet_inst in sheet.insts:
                 sheet_inst_uuid = sheet_inst.get1('uuid')
                 sheet_inst_name = sheet_inst.get_prop('Sheet name')
-                print(sheet.sch)
                 for item in sheet.sch:
                     if keyeq(item, 'symbol'):
                         uuid = item.get1('uuid')
@@ -370,3 +418,73 @@ class Sch(Sexp):
             else:
                 new.append(item)
         self.list = new
+
+
+def generate_pcb(outname, sch):
+    out = read_pcb('empty.kicad_pcb')
+
+    stage_y = 0
+
+    for _, sheet in sch.sheets.items():
+        sheet.pcb.setup()
+
+    net_offset = 0
+    for _, sheet in sch.sheets.items():
+        pcb = sheet.pcb
+        for sheet_inst in sheet.insts:
+            sheet_inst.net_offset = net_offset
+            net_offset += len(pcb.nets)
+
+    for _, sheet in sch.sheets.items():
+        pcb = sheet.pcb
+        for sheet_inst in sheet.insts:
+            for idx in range(len(pcb.nets)):
+                item = Sexp('net', elts=[idx + sheet_inst.net_offset, pcb.nets[idx]])
+                out.append(item)
+
+    for _, sheet in sch.sheets.items():
+        pcb = sheet.pcb
+        for inst in sheet.insts:
+            dest_x = -pcb.width - 10
+            dest_y = stage_y
+
+            dx = dest_x - pcb.left
+            dy = dest_y - pcb.top
+
+            for old_item in pcb:
+                if keyeq(old_item, 'gr_line'):
+                    item = copy.copy(old_item)
+                    if item.get1('layer') == 'Edge.Cuts':
+                        item.put1('layer', 'F.Fab')
+                    move_start_end(item, dx, dy)
+                    out.append(item)
+
+                elif keyeq(old_item, 'footprint'):
+                    item = copy.copy(old_item)
+                    x, y = item.get_multiple('at')
+                    item.put_multiple('at', [x + dx, y + dy])
+                    fix_net(item, sheet, sheet_inst.net_offset)
+                    out.append(item)
+
+                elif keyeq(old_item, 'segment'):
+                    item = copy.copy(old_item)
+                    move_start_end(item, dx, dy)
+                    fix_net(item, sheet, sheet_inst.net_offset)
+                    out.append(item)
+                        
+
+    with open(outname, 'w') as outf:
+        out.write(outf)
+
+def fix_net(item, sheet, net_offset):
+    for elt in item:
+        if keyeq(elt, 'net'):
+            elt.list[1] += net_offset
+
+        if isinstance(elt, Sexp):
+            fix_net(elt, sheet, net_offset)
+
+def move_start_end(item, dx, dy):
+    for key in ['start', 'end']:
+        x, y = item.get_multiple(key)
+        item.put_multiple(key, [x + dx, y + dy])

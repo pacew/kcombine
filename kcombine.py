@@ -1,12 +1,12 @@
 #! /usr/bin/env python3
 
+import os
 import sys
 
 import argparse
 import sch
 import sexp
 from sexp import sym
-
 
 def kcombine(config):
     output_filename = config.get1('output')
@@ -27,6 +27,9 @@ def kcombine(config):
 
     with open(output_filename, 'w') as outf:
         top.write(outf)
+
+    pcb_filename = os.path.splitext(output_filename)[0] + '.kicad_pcb'
+    sch.generate_pcb(pcb_filename, top)
 
 
 if __name__ == '__main__':

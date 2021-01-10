@@ -411,16 +411,16 @@
       (reference "#PWR0102") (unit 1) (value "GND") (footprint "")
     )
     (path "/c293553d-1857-49ba-80c6-4344e9369d2a/a3187d92-a65f-466c-b2cb-1668b5181ab4"
-      (reference "D1") (unit 1) (value "LED") (footprint "")
+      (reference "D1") (unit 1) (value "LED") (footprint "LED_SMD:LED_0805_2012Metric")
     )
     (path "/06532423-3d65-4f4e-90ea-5a7f8b79fbdb/87b21738-96ab-441a-9ccd-5937ced6a3d3"
-      (reference "R1") (unit 1) (value "R") (footprint "")
+      (reference "R1") (unit 1) (value "R") (footprint "Resistor_SMD:R_0805_2012Metric")
     )
     (path "/e43b63e9-cf5d-4959-8d2f-06eaf42d4980/a3187d92-a65f-466c-b2cb-1668b5181ab4"
-      (reference "D2") (unit 1) (value "LED") (footprint "")
+      (reference "D2") (unit 1) (value "LED") (footprint "LED_SMD:LED_0805_2012Metric")
     )
     (path "/736d39b2-e76b-4efe-a802-34234c19bc48/87b21738-96ab-441a-9ccd-5937ced6a3d3"
-      (reference "R2") (unit 1) (value "R") (footprint "")
+      (reference "R2") (unit 1) (value "R") (footprint "Resistor_SMD:R_0805_2012Metric")
     )
   )
 )
