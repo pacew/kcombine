@@ -5,6 +5,7 @@ import os
 from uuid import uuid4
 import sexp
 from sexp import sym, Sexp, keyeq
+import copy
 
 import re
 import random
@@ -67,8 +68,6 @@ def make_empty():
     ret.put1('paper', "A4")
     return ret
 
-# items.append(f'u:{str(self.uuid)[0:6]}')
-
 class Sheet:
     def __init__(self):
         self.sch = None
@@ -92,6 +91,122 @@ class Sheet:
 
         return f'<sheet {msg}>'
 
+# no sub sheets on top level
+def is_simple(sch):
+    if sch.get1('version') != 20201015:
+        print('unexpected version')
+        return False
+
+    safe_clauses = {
+        sym('version'), 
+        sym('generator'), 
+        sym('paper'), 
+        sym('lib_symbols'),
+        sym('sheet_instances'),
+        sym('symbol_instances'),
+        sym('junction'),
+        sym('wire'),
+        sym('hierarchical_label'),
+        sym('symbol'),
+        sym('no_connect'),
+    }
+
+    reject_clauses = {
+    }
+
+    for item in sch:
+        if item == sym('kicad_sch'):
+            continue
+
+        if keyeq(item, 'sheet'):
+            return False
+
+        key = sexp.car(item)
+        if key in safe_clauses:
+            continue
+
+        if key in reject_clauses:
+            return False
+
+        raise ValueError('unknown clause', str(item))
+
+    return True
+
+
+# top level has just a sheet
+def is_just_sheet(sch):
+    if sch.get1('version') != 20201015:
+        print('unexpected version')
+        return False
+
+    safe_clauses = {
+        sym('version'), 
+        sym('generator'), 
+        sym('paper'), 
+        sym('lib_symbols'),
+        sym('sheet_instances'),
+        sym('symbol_instances'),
+    }
+
+    reject_clauses = {
+        sym('no_connect'),
+    }
+
+    sheet_count = 0
+    for item in sch:
+        if item == sym('kicad_sch'):
+            continue
+
+        if keyeq(item, 'sheet'):
+            sheet_count += 1
+            continue
+
+        key = sexp.car(item)
+        if key in safe_clauses:
+            continue
+
+        if key in reject_clauses:
+            return False
+
+        raise ValueError('unknown clause', str(item))
+
+    if sheet_count == 1:
+        return True
+    
+    return False
+
+def make_sheet_item_prototype(sheet, inst_name):
+    posx = random.uniform(160, 250)
+    posy = random.uniform(20, 150)
+    width = 20
+    height = 15
+
+    item = Sexp('sheet')
+    item.put_multiple('at', [posx, posy])
+    item.put_multiple('size', [width, height])
+    item.put_multiple('stroke', make_stroke())
+    item.put_multiple('fill', make_fill())
+
+    prop = item.set_prop('Sheet name', inst_name)
+    set_id(prop, 0)
+    set_at(prop, posx, posy - 0.2, 0)
+    set_effects(prop, 'bottom')
+
+    prop = item.set_prop('Sheet file', sheet.local_name)
+    set_id(prop, 1)
+    set_at(prop, posx, posy + height + 0.2, 0)
+    set_effects(prop, 'top')
+
+    return item
+
+def move(exp, dx, dy):
+    if isinstance(exp, Sexp):
+        if keyeq(exp, 'at') and len(exp.list) >= 3:
+            exp.list[1] += dx
+            exp.list[2] += dy
+
+        for subexp in exp:
+            move(subexp, dx, dy)
 
 class Sch(Sexp):
     def __init__(self):
@@ -102,63 +217,69 @@ class Sch(Sexp):
     def __str__(self):
         return f'<Sch {self.local_name} {id(self) & 0xffff:x}>'
 
-    def find_sheet(self, sheet_spec):
-        input_name = sheet_spec.get1('sch_file')
-        local_name = sheet_spec.get1('local_name')
-        if local_name is None:
-            local_name = os.path.basename(input_name)
-
-        with open(local_name, 'w') as outf:
-            with open(input_name) as inf:
-                outf.write(inf.read())
-
-        if local_name not in self.sheets:
-            sheet = Sheet()
-            sheet.sch = read_sch(local_name)
-            sheet.local_name = local_name
-            self.sheets[local_name] = sheet
-
-        return self.sheets[local_name]
-
-    def find_sheet_item(self, sheet_spec, inst_name):
-        sheet_sym = sym('sheet')
-        local_name = sheet_spec.get1('local_name')
+    def find_sheet_item(self, sheet, inst_name):
         for item in self:
             if (keyeq(item, 'sheet')
-                and item.get_prop('Sheet name') == inst_name
-                and item.get_prop('Sheet file') == local_name):
+                and item.get_prop('Sheet file') == sheet.local_name
+                and item.get_prop('Sheet name') == inst_name):
                 return item
         return None
 
+
+    def get_sheet(self, sheet_spec):
+        sheet = Sheet()
+
+        sch_file = sheet_spec.get1('sch_file')
+        sheet.sch = read_sch(sch_file)
+
+        sheet.local_name = sheet_spec.get1('local_name')
+        if sheet.local_name is None:
+            sheet.local_name = os.path.basename(sch_file)
+
+        if is_simple(sheet.sch):
+            sheet.item_prototype = make_sheet_item_prototype(sheet, 'dummy')
+            src_path = sch_file
+        elif is_just_sheet(sheet.sch):
+            sheet.item_prototype = sheet.sch.assoc('sheet')
+            src_path = os.path.join(os.path.dirname(sch_file), 
+                                    sheet.item_prototype.get_prop('Sheet file'))
+            sheet.sch = read_sch(src_path)
+        else:
+            print('can\'t handle top level', sch_file, '0 or 1 sheet required')
+            sys.exit(1)
+
+        with open(sheet.local_name, 'w') as outf:
+            with open(src_path) as inf:
+                outf.write(inf.read())
+
+        self.sheets[sheet.local_name] = sheet
+        return sheet
+
+
     def add_sheet(self, sheet_spec, inst_name):
-        sheet = self.find_sheet(sheet_spec)
-        sheet_item = self.find_sheet_item(sheet_spec, inst_name)
-        if sheet_item is None:
-            posx = random.uniform(160, 250)
-            posy = random.uniform(20, 150)
-            width = 20
-            height = 15
+        sheet = self.get_sheet(sheet_spec)
 
-            item = Sexp('sheet')
-            item.put_multiple('at', [posx, posy])
-            item.put_multiple('size', [width, height])
-            item.put_multiple('stroke', make_stroke())
-            item.put_multiple('fill', make_fill())
+        local = self.find_sheet_item(sheet, inst_name)
+        if local is None:
+            local = make_sheet_item_prototype(sheet, inst_name)
+            local.put1('uuid', sym(str(uuid4())))
+            self.list.append(local)
 
-            uuid = sym(str(uuid4()))
-            item.put1('uuid', uuid)
-
-            prop = item.set_prop('Sheet name', inst_name)
-            set_id(prop, 0)
-            set_at(prop, posx, posy - 0.2, 0)
-            set_effects(prop, 'bottom')
+        new = copy.copy(sheet.item_prototype)
+        new.put1('uuid', local.get1('uuid'))
         
-            prop = item.set_prop('Sheet file', sheet.local_name)
-            set_id(prop, 1)
-            set_at(prop, posx, posy + height + 0.2, 0)
-            set_effects(prop, 'top')
+        (old_x, old_y) = local.get_multiple('at')
+        (new_x, new_y) = new.get_multiple('at')
+        dx = old_x - new_x
+        dy = old_y - new_y
 
-            self.list.append(item)
+        move(new, dx, dy)
+
+        new.set_prop('Sheet file', sheet.local_name)
+        new.set_prop('Sheet name', inst_name)
+
+        local.list = new.list
+
 
     def generate_sheet_instances(self):
         for _, sheet in self.sheets.items():
@@ -211,6 +332,7 @@ class Sch(Sexp):
             for sheet_inst in sheet.insts:
                 sheet_inst_uuid = sheet_inst.get1('uuid')
                 sheet_inst_name = sheet_inst.get_prop('Sheet name')
+                print(sheet.sch)
                 for item in sheet.sch:
                     if keyeq(item, 'symbol'):
                         uuid = item.get1('uuid')
@@ -238,59 +360,13 @@ class Sch(Sexp):
         si = Sexp(elts=symbol_instances)
         self.put_multiple('symbol_instances', si)
         
-class SheetInst:
-    def __init__(self, sheet, inst_name, uuid):
-        self.sheet = sheet
-        self.inst_name = inst_name
-        self.uuid = uuid
-
-        self.sheet.add_sheet_inst(self)
-
-    def __repr__(self):
-        return (f'<sheet-inst {self.sheet.filename}'
-                f' {self.inst_name} {self.uuid}>')
-
-class Sheet_old:
-    sheets = dict()
-
-    def add_sheet_inst(self, sheet_inst):
-        self.sheet_insts.append(sheet_inst)
-
-    @classmethod
-    def lookup_by_file(cls, filename):
-        return cls.sheets.get(filename)
-
-    @classmethod
-    def from_file(cls, filename):
-        if filename in cls.sheets:
-            return cls.sheets[filename]
-
-        sch = Sch().readfile(filename)
-
-        sheet = cls()
-        sheet.filename = filename
-        sheet.sch = sch
-        sheet.sheet_insts = list()
-
-        cls.sheets[filename] = sheet
-        return sheet
-
-
-def main():
-    top = Sch().make_empty()
-
-    if False:
-        led = Sheet.from_file('led-sheet.kicad_sch')
-        top.add_sheet(led, "led1")
-        top.add_sheet(led, "led2")
-    else:
-        cap = Sheet.from_file('cap.kicad_sch')
-        top.add_sheet(cap, 'cap1')
-
-    top.fixup_sheet_instances()
-    top.fixup_symbol_instances()
-
-    top.print_sch()
-
-if __name__ == '__main__':
-    main()
+    def filter_sheets(self):
+        new = Sexp()
+        for item in self:
+            if keyeq(item, 'sheet'):
+                local_name = item.get_prop('Sheet file')
+                if local_name in self.sheets:
+                    new.append(item)
+            else:
+                new.append(item)
+        self.list = new

@@ -15,7 +15,6 @@ def kcombine(config):
     except FileNotFoundError:
         top = sch.make_empty()
 
-    sheet_sym = sym('sheet')
     for sheet_spec in config:
         if sexp.keyeq(sheet_spec, 'sheet'):
             insts = sheet_spec.get_multiple('inst')
@@ -24,6 +23,7 @@ def kcombine(config):
 
     top.generate_sheet_instances()
     top.fixup_symbol_instances()
+    top.filter_sheets()
 
     with open(output_filename, 'w') as outf:
         top.write(outf)

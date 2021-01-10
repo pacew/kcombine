@@ -30,6 +30,10 @@ def sym(name):
 def keyeq(item, name):
     return isinstance(item, Sexp) and item.keyeq(name)
 
+def car(item):
+    if isinstance(item, Sexp) and len(item.list) > 0:
+        return item.list[0]
+    return None
 
 class PeekStream:
     def __init__(self, filename):
@@ -235,7 +239,7 @@ class Sexp:
     def put1(self, key, val):
         key = self.tosym(key)
         item = self.assoc(key)
-        if item is Sexp:
+        if isinstance(item, Sexp):
             del item.list[1:]
             item.list.append(val)
         else:
@@ -278,7 +282,7 @@ class Sexp:
             prop.list.extend([pname, pval])
             self.list.append(prop)
         else:
-            prop[2] = pval
+            prop.list[2] = pval
         return prop
 
     def cadr(self):

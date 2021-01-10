@@ -6,48 +6,27 @@
   )
 
 
-  (no_connect (at 222.25 83.82))
-
-  (sheet (at 168.91 60.96) (size 26.67 20.32)
+  (sheet (at 245.11 132.08) (size 26.67 20.32)
     (stroke (width 0.001) (type solid) (color 132 0 132 1))
     (fill (color 255 255 255 0.0000))
     (uuid f6f98991-c174-4124-bca3-675ab210d740)
-    (property "Sheet name" "led" (id 0) (at 168.91 60.3241 0)
+    (property "Sheet name" "led" (id 0) (at 245.11 131.4441 0)
       (effects (font (size 1.27 1.27)) (justify left bottom))
     )
-    (property "Sheet file" "led-sheet.kicad_sch" (id 1) (at 168.91 81.7889 0)
+    (property "Sheet file" "led-sheet.kicad_sch" (id 1) (at 245.11 152.9089 0)
       (effects (font (size 1.27 1.27)) (justify left top))
     )
-    (pin "LED_A" input (at 168.91 66.04 180)
+    (pin "LED_A" input (at 245.11 137.16 180)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (pin "LED_C" input (at 168.91 72.39 180)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-  )
-
-  (sheet (at 173.99 92.71) (size 26.67 20.32)
-    (stroke (width 0.001) (type solid) (color 132 0 132 1))
-    (fill (color 255 255 255 0.0000))
-    (uuid 4dff663b-c177-47c1-8447-1314ace07df1)
-    (property "Sheet name" "led1" (id 0) (at 173.99 92.0741 0)
-      (effects (font (size 1.27 1.27)) (justify left bottom))
-    )
-    (property "Sheet file" "led-sheet.kicad_sch" (id 1) (at 173.99 113.5389 0)
-      (effects (font (size 1.27 1.27)) (justify left top))
-    )
-    (pin "LED_A" input (at 173.99 97.79 180)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (pin "LED_C" input (at 173.99 104.14 180)
-      (effects (font (size 1.27 1.27)) (justify left))
+    (pin "LED_C" input (at 271.78 143.51 0)
+      (effects (font (size 1.27 1.27)) (justify right))
     )
   )
 
   (sheet_instances
     (path "/" (page "1"))
     (path "/f6f98991-c174-4124-bca3-675ab210d740/" (page "2"))
-    (path "/4dff663b-c177-47c1-8447-1314ace07df1/" (page ""))
   )
 
   (symbol_instances
@@ -59,15 +38,6 @@
     )
     (path "/f6f98991-c174-4124-bca3-675ab210d740/39dd7655-a0be-4856-a0cf-d45a3e703a6a"
       (reference "TP2") (unit 1) (value "TestPoint") (footprint "TestPoint:TestPoint_Pad_1.0x1.0mm")
-    )
-    (path "/4dff663b-c177-47c1-8447-1314ace07df1/6d1ae22a-56e7-4f68-8007-d9b1bbd2a6d1"
-      (reference "D2") (unit 1) (value "LED") (footprint "LED_SMD:LED_0805_2012Metric")
-    )
-    (path "/4dff663b-c177-47c1-8447-1314ace07df1/32c558c9-73c5-42f4-bab5-24c9340f9df1"
-      (reference "TP3") (unit 1) (value "TestPoint") (footprint "TestPoint:TestPoint_Pad_1.0x1.0mm")
-    )
-    (path "/4dff663b-c177-47c1-8447-1314ace07df1/39dd7655-a0be-4856-a0cf-d45a3e703a6a"
-      (reference "TP4") (unit 1) (value "TestPoint") (footprint "TestPoint:TestPoint_Pad_1.0x1.0mm")
     )
   )
 )
