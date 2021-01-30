@@ -66,8 +66,7 @@ def read_sexp(filename):
     with PeekStream(filename) as inf:
         return Sexp().read_exp(inf)
 
-
-def str_sexp(elt):
+def str_atom(elt):
     if isinstance(elt, str):
         ret = '"'
         for c in elt:
@@ -85,17 +84,6 @@ def str_sexp(elt):
                 ret += c
         ret += '"'
         return ret
-    elif isinstance(elt, Sexp):
-        ret = '('
-        need_space = False
-        for subelt in elt.list:
-            if need_space:
-                ret += ' '
-            need_space = True
-            
-            ret += str_sexp(subelt)
-        ret += ')\n'
-        return ret
     elif isinstance(elt, Sym):
         return elt.name
     elif isinstance(elt, int):
@@ -104,6 +92,33 @@ def str_sexp(elt):
         return f'{elt:.4f}'
     else:
         return '<OOPS>'
+
+
+def str_sexp(elt, indent=0):
+    if isinstance(elt, Sexp):
+        has_sublist = False
+        for subelt in elt.list:
+            if isinstance(subelt, Sexp):
+                has_sublist = True
+        if has_sublist:
+            ret = ' ' * indent + '(\n'
+            for subelt in elt.list:
+                ret += str_sexp(subelt, indent + 1)
+                if not isinstance(subelt, Sexp):
+                    ret += '\n'
+            ret += ' ' * indent + ')\n'
+        else:
+            ret = ' ' * indent + '('
+            need_space = False
+            for subelt in elt.list:
+                if need_space:
+                    ret += ' '
+                need_space = True
+                ret += str_sexp(subelt)
+            ret += ')\n'
+        return ret
+    else:
+        return ' ' * indent + str_atom(elt)
 
 def print_sexp(elt, outf=None):
     if outf is None:
