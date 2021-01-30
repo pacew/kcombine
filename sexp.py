@@ -61,6 +61,7 @@ class PeekStream:
     def unget(self, c):
         self.unget_char = c
 
+
 def read_sexp(filename):
     with PeekStream(filename) as inf:
         return Sexp().read_exp(inf)

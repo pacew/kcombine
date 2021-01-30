@@ -21,11 +21,14 @@ def item_type(item):
         return item[0]
     return None
 
+
 def set_id(prop, val):
     prop.put1('id', val)
                 
+
 def set_at(prop, x, y, rotation):
     prop.put_multiple('at', [x, y, rotation])
+
 
 def set_effects(prop, top_bottom):
     elts = Sexp()
@@ -62,10 +65,12 @@ def read_sch(filename):
         sch.local_name = filename
         return sch
 
+
 def read_pcb(filename):
     with sexp.PeekStream(filename) as inf:
         pcb = Pcb().read_exp(inf)
         return pcb
+
 
 class Pcb(Sexp):
     def __init__(self):
@@ -132,7 +137,6 @@ class Sheet:
         msg = ' '.join(items)
 
         return f'<sheet {msg}>'
-
 
 
 # no sub sheets on top level
@@ -235,11 +239,13 @@ def make_sheet_item_prototype(sheet, inst_name):
     item.put_multiple('stroke', make_stroke())
     item.put_multiple('fill', make_fill())
 
+    # put the inst name at the top of the sheet block
     prop = item.set_prop('Sheet name', inst_name)
     set_id(prop, 0)
     set_at(prop, posx, posy - 0.2, 0)
     set_effects(prop, 'bottom')
 
+    # put the sheet filename at the bottom of the sheet block
     prop = item.set_prop('Sheet file', sheet.local_name)
     set_id(prop, 1)
     set_at(prop, posx, posy + height + 0.2, 0)
@@ -247,14 +253,27 @@ def make_sheet_item_prototype(sheet, inst_name):
 
     return item
 
-def move(exp, dx, dy):
+def at_move(exp, dx, dy):
     if isinstance(exp, Sexp):
         if keyeq(exp, 'at') and len(exp.list) >= 3:
             exp.list[1] += dx
             exp.list[2] += dy
 
         for subexp in exp:
-            move(subexp, dx, dy)
+            at_move(subexp, dx, dy)
+
+
+def start_end_move(item, dx, dy):
+    ret = []
+    for elt in item:
+        if keyeq(elt, 'start') or keyeq(elt, 'end'):
+            elt = Sexp(elt.list[0], elts=[elt.list[1] + dx, elt.list[2] + dy])
+        if isinstance(elt, Sexp):
+            elt = start_end_move(elt, dx, dy)
+
+        ret.append(elt)
+
+    return Sexp(elts=ret)
 
 
 class Sch(Sexp):
@@ -274,7 +293,6 @@ class Sch(Sexp):
                 and item.get_prop('Sheet name') == inst_name):
                 return item
         return None
-
 
     def get_sheet(self, sheet_spec):
         sheet = Sheet()
@@ -303,6 +321,8 @@ class Sch(Sexp):
                    f'must have no sheets, or just 1 sheet all by itself'))
             sys.exit(1)
 
+        # copy to local directory
+        # TODO don't copy onto self
         with open(sheet.local_name, 'w') as outf:
             with open(src_path) as inf:
                 outf.write(inf.read())
@@ -328,13 +348,12 @@ class Sch(Sexp):
         dx = old_x - new_x
         dy = old_y - new_y
 
-        move(new, dx, dy)
+        at_move(new, dx, dy)
 
         new.set_prop('Sheet file', sheet.local_name)
         new.set_prop('Sheet name', inst_name)
 
         local.list = new.list
-
 
     def generate_sheet_instances(self):
         for _, sheet in self.sheets.items():
@@ -366,7 +385,6 @@ class Sch(Sexp):
                 page_num = None
 
         self.put_multiple('sheet_instances', si)
-
 
     def fixup_symbol_instances(self):
         sheet_uuids_used = set()
@@ -482,7 +500,7 @@ def generate_pcb(outname, sch):
                     item = copy.copy(old_item)
                     if item.get1('layer') == 'Edge.Cuts':
                         item.put1('layer', 'F.Fab')
-                    item = move_start_end(item, dx, dy)
+                    item = start_end_move(item, dx, dy)
                     out.append(item)
 
                 elif keyeq(old_item, 'footprint'):
@@ -498,7 +516,7 @@ def generate_pcb(outname, sch):
 
                 elif keyeq(old_item, 'segment'):
                     item = copy.copy(old_item)
-                    item = move_start_end(item, dx, dy)
+                    item = start_end_move(item, dx, dy)
                     item.list = fix_net(item, sheet, sheet_inst)
                     out.append(item)
 
@@ -521,6 +539,7 @@ def get_footprint_ref(item):
         if keyeq(elt, 'fp_text') and elt.list[1] == reference_sym:
             return elt.list[2]
     return None
+
 
 def fix_footprint(item, sheet, sheet_inst, sch):
 
@@ -555,7 +574,6 @@ def fix_footprint(item, sheet, sheet_inst, sch):
             
         ret.append(elt)
     return Sexp(elts=ret)
-        
 
 
 def fix_net(item, sheet, sheet_inst):
@@ -574,14 +592,3 @@ def fix_net(item, sheet, sheet_inst):
         ret.append(elt)
     return Sexp(elts=ret)
 
-def move_start_end(item, dx, dy):
-    ret = []
-    for elt in item:
-        if keyeq(elt, 'start') or keyeq(elt, 'end'):
-            elt = Sexp(elt.list[0], elts=[elt.list[1] + dx, elt.list[2] + dy])
-        if isinstance(elt, Sexp):
-            elt = move_start_end(elt, dx, dy)
-
-        ret.append(elt)
-
-    return Sexp(elts=ret)

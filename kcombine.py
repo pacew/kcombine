@@ -6,7 +6,6 @@ import sys
 import argparse
 import sch
 import sexp
-from sexp import sym
 
 def kcombine(config):
     output_filename = config.get1('output')
