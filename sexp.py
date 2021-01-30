@@ -79,6 +79,8 @@ def str_sexp(elt):
                 ret += '\\t'
             elif c == '\\':
                 ret += '\\\\'
+            elif c == '"':
+                ret += '\\"'
             else:
                 ret += c
         ret += '"'

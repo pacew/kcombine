@@ -31,6 +31,12 @@ def kcombine(config):
     sch.generate_pcb(pcb_filename, top)
 
 
+def test_sexp():
+    with sexp.PeekStream("foo") as inf:
+        print(sexp.Sexp().read_exp(inf))
+    sys.exit(0)
+      
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('config')
